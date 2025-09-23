@@ -108,7 +108,7 @@ class FrameParameters(NamedTuple):
     sim_intensities: bool = True
     disk_brightness: float = 1.
     mask_gauss_sigma: float = 2.
-    falloff_power: float = 2.
+    falloff_power: float = 4.
     inelastic_sigma: float = 4.
     frame_brightness: float = 40.
     frame_noise_scale: float = 0.1
