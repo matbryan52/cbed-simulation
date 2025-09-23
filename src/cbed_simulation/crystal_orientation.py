@@ -328,10 +328,7 @@ class OrientedPhase(NamedTuple):
         self,
         experiment: ExperimentInformation,
         sim_peaks: SimulatedPeaks,
-        acceptance: float = 1.5,
-        max_accept: int | None = None,
         distortions: DistortionConfig = DistortionConfig(),
-        progress: bool = False,
         frame_params: FrameParameters = FrameParameters(),
     ):
         offsets = sim_peaks.peaks
@@ -345,7 +342,6 @@ class OrientedPhase(NamedTuple):
             warped,
             experiment.radius_px,
             intensities=intensities,
-            progress=progress,
             params=frame_params,
         )
         return frame

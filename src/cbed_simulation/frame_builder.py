@@ -105,13 +105,14 @@ def g1g2_pattern(frame_shape, g1, g2):
 
 
 class FrameParameters(NamedTuple):
-    sim_intensities: bool = True
     disk_brightness: float = 1.
-    mask_gauss_sigma: float = 2.
-    falloff_power: float = 4.
-    inelastic_sigma: float = 4.
+    disk_blur_sigma: float = 2.
+    intensity_from_radius: bool = False
+    intensity_falloff_power: float = 4.
+    textured: bool = True
     frame_brightness: float = 40.
-    frame_noise_scale: float = 0.1
+    inelastic_scatter_sigma: float = 4.
+    additive_noise_scale: float = 0.1
 
 
 def build_frame(
@@ -123,7 +124,6 @@ def build_frame(
     orientation: float = 0.,
     params: FrameParameters = FrameParameters(),
     intensities: np.ndarray | None = None,
-    progress: bool = False,
 ) -> np.ndarray:
     p = params
     h, w = frame_shape
@@ -136,18 +136,20 @@ def build_frame(
         (h + 2 * buffer, w + 2 * buffer)
     ).astype(dtype=np.float32)
     base_frame = frame.copy()
-    texture = gen_noise(frame_shape)
-    texture = np.pad(
-        texture,
-        ((buffer, buffer), (buffer, buffer))
-    )
-    assert texture.shape == frame.shape
+    if p.textured:
+        texture = gen_noise(frame_shape)
+        texture = np.pad(
+            texture,
+            ((buffer, buffer), (buffer, buffer))
+        )
+        assert texture.shape == frame.shape
 
     # Make base frame
     cy, cx = np.asarray(base_frame.shape) // 2
     base_centre = complex(cx, cy)
     aa_disk(base_frame, cy, cx, r, p.disk_brightness, minor, orientation)
-    base_frame = gaussian(base_frame, sigma=p.mask_gauss_sigma)
+    if p.disk_blur_sigma > 0:
+        base_frame = gaussian(base_frame, sigma=p.disk_blur_sigma)
     base_frame = xp.fft.fft2(xp.asarray(base_frame.copy()))
 
     # Make the radius / extinction map
@@ -169,9 +171,9 @@ def build_frame(
     radius -= radius.max()
     radius *= -1
 
-    if intensities is None or (not p.sim_intensities):
+    if intensities is None or p.intensity_from_radius:
         multiplier = radius.copy()
-        multiplier **= p.falloff_power
+        multiplier **= p.intensity_falloff_power
         intensities = np.ones(offsets.shape)
     else:
         multiplier = np.ones_like(frame)
@@ -197,7 +199,8 @@ def build_frame(
         )
     ).real
     frame *= xp.asarray(valid_intensities)[:, np.newaxis, np.newaxis]
-    frame *= xp.asarray(texture)[xp.newaxis, ...]
+    if p.textured:
+        frame *= xp.asarray(texture)[xp.newaxis, ...]
     frame *= xp.asarray(multiplier)[xp.newaxis, ...]
     frame = xp.max(frame, axis=0)
     frame *= p.frame_brightness
@@ -206,14 +209,16 @@ def build_frame(
     except AttributeError:
         pass
 
-    gauss_frame = gaussian(frame, sigma=p.inelastic_sigma)
-    noise = np.random.poisson(np.clip(gauss_frame.ravel(), 0.001, np.inf))
-    frame += noise.reshape(frame.shape)
-    frame += (
-        np.random.poisson(
-            (radius ** 2) * frame.max() * p.frame_noise_scale,
+    if p.inelastic_scatter_sigma > 0.:
+        gauss_frame = gaussian(frame, sigma=p.inelastic_sigma)
+        noise = np.random.poisson(np.clip(gauss_frame.ravel(), 0.001, np.inf))
+        frame += noise.reshape(frame.shape)
+    if p.additive_noise_scale > 0.:
+        frame += (
+            np.random.poisson(
+                (radius ** 2) * frame.max() * p.additive_noise_scale,
+            )
+            .astype(int)
+            .reshape(frame.shape)
         )
-        .astype(int)
-        .reshape(frame.shape)
-    )
     return np.round(frame[buffer: -buffer, buffer: -buffer]).astype(int)
