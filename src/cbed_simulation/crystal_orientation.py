@@ -97,6 +97,13 @@ class IndexedPeaks(NamedTuple):
             return to_array(self.offsets)
         return to_array(self.peaks)
 
+    def modify_intensities(self, power: float):
+        self.weights[:] **= power
+
+    def modify_000_intensity(self, multiply: float):
+        index_000 = self.spot_index((0, 0, 0))
+        self.weights[index_000] *= multiply
+
     def apply_mask(self, mask: np.ndarray):
         return type(self)(
             self.pos_000,

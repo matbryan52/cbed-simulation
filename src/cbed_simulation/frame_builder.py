@@ -213,7 +213,7 @@ def build_frame(
         pass
 
     if p.inelastic_scatter_sigma > 0.:
-        gauss_frame = gaussian(frame, sigma=p.inelastic_sigma)
+        gauss_frame = gaussian(frame, sigma=p.inelastic_scatter_sigma)
         noise = np.random.poisson(np.clip(gauss_frame.ravel(), 0.001, np.inf))
         frame += noise.reshape(frame.shape)
     if p.additive_noise_scale > 0.:
