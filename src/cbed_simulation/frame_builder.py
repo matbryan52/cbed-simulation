@@ -158,6 +158,7 @@ def build_frame(
             np.meshgrid(
                 np.arange(eh) - ccy,
                 np.arange(ew) - ccx,
+                indexing="ij",
             ),
             axis=0
         ),
