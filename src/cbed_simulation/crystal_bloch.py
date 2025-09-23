@@ -38,7 +38,7 @@ def rotation_for_hkl(cif_path: os.PathLike, hkl: tuple[int, int, int]):
 def get_bloch_pattern(
     cif_or_atoms: os.PathLike | Atoms,
     rotation: Rotation,
-    strain: tuple[float, float, float] = (1., 1., 1.),
+    stretch_abc: tuple[float, float, float] = (1., 1., 1.),
     progress: bool = False,
     voltage: float = 200e3,
     thickness_nm: float = 200,
@@ -51,7 +51,7 @@ def get_bloch_pattern(
         atoms.cell = atoms.cell.copy()
     else:
         atoms = read_atoms(cif_or_atoms)
-    atoms.set_cell(atoms.cell * strain, scale_atoms=True)
+    atoms.set_cell(atoms.cell * stretch_abc, scale_atoms=True)
     structure_factor = StructureFactor(
         atoms,
         g_max=max_extent * 2,  # maximum scattering vector length (angle?)
