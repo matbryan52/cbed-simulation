@@ -1,7 +1,7 @@
 from typing import NamedTuple, Sequence
 import numpy as np
 import numpy as xp
-from skimage.draw import ellipse
+from skimage.draw import ellipse, circle_perimeter_aa
 from skimage.filters import gaussian
 from perlin_numpy import generate_perlin_noise_2d
 
@@ -92,6 +92,9 @@ def aa_disk(frame, cy, cx, major, scale, minor=None, orientation=0.):
         cy, cx, minor, major, shape=frame_shape, rotation=np.deg2rad(orientation)
     )
     frame[rr, cc] = scale
+    assert major == minor, "No support for antialiased ellipses yet"
+    rr, cc, val = circle_perimeter_aa(cy, cx, major, shape=frame_shape)
+    frame[rr, cc] = np.maximum(scale * val, frame[rr, cc])
 
 
 def g1g2_pattern(frame_shape, g1, g2):
