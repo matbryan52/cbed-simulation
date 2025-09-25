@@ -158,7 +158,6 @@ def build_frame(
     # Make the radius / extinction map
     eh, ew = base_frame.shape
     ccx, ccy = expanded_centre.real, expanded_centre.imag
-    # NOTE found an off-by-one here when template matching
     radius = np.linalg.norm(
         np.stack(
             np.meshgrid(
