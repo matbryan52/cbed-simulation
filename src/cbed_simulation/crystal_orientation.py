@@ -141,14 +141,23 @@ class IndexedPeaks(NamedTuple):
         )
         return new_this, new_other
 
-    def plot(self, fig, ax, interactive: bool = True):
+    def plot(
+        self,
+        fig,
+        ax,
+        interactive: bool = True,
+        point_alpha: float = 1.,
+    ):
         from .interactive_miller_plot import plot_pattern
         plot_pattern(
-            fig, ax,
-            None, None,
-            to_array(self.peaks)[:, ::-1],
-            2,
-            self.hkls,
+            fig,
+            ax,
+            frame=None,
+            max_extent=None,
+            spots=to_array(self.peaks)[:, ::-1],
+            intensity=2,
+            millers=self.hkls,
+            scatter_alpha=point_alpha,
             interactive=interactive,
         )
 
