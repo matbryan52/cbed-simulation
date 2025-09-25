@@ -52,7 +52,7 @@ def template_from_vacuum(
     cyx: tuple[float, float],
     r_estimate: float,
     beam_rescale_factor: float = 0.95,
-    edge_rescale_factor: float = 1.025,
+    edge_rescale_factor: float = 1.05,
     clip_max_frac: float = 0.5,
     sigmoid_taper_frac: float = 1.5,
 ):
