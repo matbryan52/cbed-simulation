@@ -1,7 +1,8 @@
 from typing import NamedTuple, Sequence
 import numpy as np
 import numpy as xp
-from skimage.draw import ellipse, circle_perimeter_aa
+from skimage.transform import resize
+from skimage.draw import ellipse
 from skimage.filters import gaussian
 from perlin_numpy import generate_perlin_noise_2d
 
@@ -83,18 +84,28 @@ def apply_strain(e_xx, e_xy, e_yy, e_rot, g1, g2):
     return complex(*Gstrained_p[:, 0]), complex(*Gstrained_p[:, 1])
 
 
-def aa_disk(frame, cy, cx, major, scale, minor=None, orientation=0.):
-    frame_shape = frame.shape
+def aa_ellipse(frame_shape, cy, cx, major, scale, minor=None, orientation=0., upsample=4):
+    assert isinstance(upsample, int)
+    h, w = frame_shape
+    frame = np.zeros((int(h * upsample), int(w * upsample)), dtype=np.float32)
+    cy = cy * upsample
+    cx = cx * upsample
     if minor is None:
         minor = major
+    major = int(np.round(major * upsample))
+    minor = int(np.round(minor * upsample))
     minor, major = sorted((minor, major))
     rr, cc = ellipse(
-        cy, cx, minor, major, shape=frame_shape, rotation=np.deg2rad(orientation)
+        cy, cx, minor, major, shape=frame.shape, rotation=np.deg2rad(orientation)
     )
     frame[rr, cc] = scale
-    assert major == minor, "No support for antialiased ellipses yet"
-    rr, cc, val = circle_perimeter_aa(cy, cx, major, shape=frame_shape)
-    frame[rr, cc] = np.maximum(scale * val, frame[rr, cc])
+    return resize(
+        frame,
+        frame_shape,
+        anti_aliasing=True,
+        preserve_range=True,
+        clip=False,
+    )
 
 
 def g1g2_pattern(frame_shape, g1, g2):
@@ -138,7 +149,6 @@ def build_frame(
     frame = np.zeros(
         (h + 2 * buffer, w + 2 * buffer)
     ).astype(dtype=np.float32)
-    base_frame = frame.copy()
     if p.textured:
         texture = gen_noise(frame_shape)
         texture = np.pad(
@@ -148,9 +158,9 @@ def build_frame(
         assert texture.shape == frame.shape
 
     # Make base frame
-    cy, cx = np.asarray(base_frame.shape) // 2
+    cy, cx = np.asarray(frame.shape) // 2
     base_centre = complex(cx, cy)
-    aa_disk(base_frame, cy, cx, r, p.disk_brightness, minor, orientation)
+    base_frame = aa_ellipse(frame.shape, cy, cx, r, p.disk_brightness, minor, orientation)
     if p.disk_blur_sigma > 0:
         base_frame = gaussian(base_frame, sigma=p.disk_blur_sigma)
     base_frame = xp.fft.fft2(xp.asarray(base_frame.copy()))

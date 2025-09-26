@@ -33,8 +33,10 @@ class GVecs(NamedTuple):
 class ExperimentInformation(NamedTuple):
     frame_shape: tuple[int, int]
     transmitted_centre_px: complex
-    radius_px: int
+    radius_px: int  # major axis
     pattern_scale_factor: float  # px / nm-1
+    ellipse_minor: float = 1.  # radius_px is major axis
+    ellipse_orientation: float = 0.  # degrees
     pattern_rotation: float = 0.  # degrees
     voltage_kv: float = 200.
     precession_angle: float = 1.
@@ -369,6 +371,8 @@ class OrientedPhase(NamedTuple):
             experiment.transmitted_centre_px,
             warped,
             experiment.radius_px,
+            minor=experiment.ellipse_minor,
+            orientation=experiment.ellipse_orientation,
             intensities=intensities,
             params=frame_params,
         )
