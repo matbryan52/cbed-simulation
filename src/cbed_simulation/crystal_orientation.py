@@ -327,6 +327,7 @@ class OrientedPhase(NamedTuple):
         max_extent: float | None = None,
         stretch_abc: tuple[float, float, float] = (1., 1., 1.),
         scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
+        rotate_deg: float = 0.,
         bloch: bool = True,
     ):
         if max_extent is None:
@@ -344,10 +345,12 @@ class OrientedPhase(NamedTuple):
             kwargs["scale_bc_ac_ab"] = scale_bc_ac_ab
         if max_excitation_error is not None:
             kwargs["max_excitation_error"] = max_excitation_error
-        return fn(
+        peaks = fn(
             experiment,
             **kwargs,
         )
+        peaks.offsets[:] *= np.exp(1j * np.deg2rad(rotate_deg))
+        return peaks
 
     def synthetic(
         self,
