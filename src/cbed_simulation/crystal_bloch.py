@@ -39,6 +39,7 @@ def get_bloch_pattern(
     cif_or_atoms: os.PathLike | Atoms,
     rotation: Rotation,
     stretch_abc: tuple[float, float, float] = (1., 1., 1.),
+    scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
     progress: bool = False,
     voltage: float = 200e3,
     thickness_nm: float = 200,
@@ -51,7 +52,10 @@ def get_bloch_pattern(
         atoms.cell = atoms.cell.copy()
     else:
         atoms = read_atoms(cif_or_atoms)
-    atoms.set_cell(atoms.cell * stretch_abc, scale_atoms=True)
+    cellpar = atoms.cell.cellpar().copy()
+    cellpar[:3] *= np.asarray(stretch_abc)
+    cellpar[3:] *= np.asarray(scale_bc_ac_ab)
+    atoms.set_cell(cellpar, scale_atoms=True)
     structure_factor = StructureFactor(
         atoms,
         g_max=max_extent * 2,  # maximum scattering vector length (angle?)

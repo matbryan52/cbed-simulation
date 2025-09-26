@@ -300,12 +300,14 @@ class OrientedPhase(NamedTuple):
         max_excitation_error: float = 0.1,
         max_extent: float | None = None,
         stretch_abc: tuple[float, float, float] = (1., 1., 1.),
+        scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
     ):
         pattern = get_bloch_pattern(
             self.atoms,
             self.orientation.inv(),
             progress=False,
             stretch_abc=stretch_abc,
+            scale_bc_ac_ab=scale_bc_ac_ab,
             voltage=experiment.voltage_kv * 1_000,
             max_extent=max_extent,
             max_excitation_error=max_excitation_error,
@@ -324,6 +326,7 @@ class OrientedPhase(NamedTuple):
         max_excitation_error: float | None = None,
         max_extent: float | None = None,
         stretch_abc: tuple[float, float, float] = (1., 1., 1.),
+        scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
         bloch: bool = True,
     ):
         if max_extent is None:
@@ -334,9 +337,11 @@ class OrientedPhase(NamedTuple):
         kwargs = dict(
             max_extent=max_extent,
         )
-        if stretch_abc != (1., 1., 1.) and not bloch:
+        if not bloch and (stretch_abc != (1., 1., 1.) or scale_bc_ac_ab != (1., 1., 1.)):
             raise NotImplementedError("No support for strained crystal with kinematic simulation")
-        kwargs["stretch_abc"] = stretch_abc
+        else:
+            kwargs["stretch_abc"] = stretch_abc
+            kwargs["scale_bc_ac_ab"] = scale_bc_ac_ab
         if max_excitation_error is not None:
             kwargs["max_excitation_error"] = max_excitation_error
         return fn(
