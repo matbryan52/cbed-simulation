@@ -1,10 +1,15 @@
 from typing import NamedTuple, Sequence
 import numpy as np
-import numpy as xp
 from skimage.transform import resize
 from skimage.draw import ellipse
 from skimage.filters import gaussian
 from perlin_numpy import generate_perlin_noise_2d
+
+try:
+    import numpy as xp
+    #import cupy as xp
+except ModuleNotFoundError:
+    import numpy as xp
 
 
 def fourier_shift(image_fft: np.ndarray, shift: np.ndarray, out=None):
