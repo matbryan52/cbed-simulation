@@ -4,24 +4,26 @@ from orix.vector import Vector3d
 from orix.quaternion import Rotation
 from orix.io.plugins.ang import file_reader
 
+from .frame_builder import xp
 
-def to_complex(array) -> complex | np.ndarray[complex]:
+
+def to_complex(array, xp=xp) -> complex | np.ndarray[complex]:
     """
     Convert [..., (y, x)] to x + y * 1j complex
     """
-    if np.asarray(array).size == 2:
+    if xp.asarray(array).size == 2:
         return complex(*(array[::-1]))
     return array[..., :, 1] + array[..., 0] * 1j
 
 
-def to_array(complex_array):
+def to_array(complex_array, xp=xp):
     """
     Convert x + y * 1j to array [..., (y, x)]
     """
-    if np.asarray(complex_array).size == 1 and np.iscomplex(complex_array).all():
-        return np.asarray((complex_array.imag, complex_array.real))
-    complex_array = np.asarray(complex_array)
-    return np.stack(
+    if xp.asarray(complex_array).size == 1 and xp.iscomplex(complex_array).all():
+        return xp.asarray((complex_array.imag, complex_array.real))
+    complex_array = xp.asarray(complex_array)
+    return xp.stack(
         (
             complex_array.imag,
             complex_array.real,

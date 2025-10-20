@@ -2,6 +2,8 @@ import os
 import copy
 import pathlib
 from typing import NamedTuple
+
+import sparseconverter as spc
 import numpy as np
 from orix.quaternion import Rotation
 from orix.crystal_map import Phase
@@ -16,7 +18,7 @@ from ase.io import read as read_atoms
 from .utils import to_complex, to_array
 from .distortions import DistortionConfig, apply_distortion
 from .crystal_bloch import scale_and_rotate, get_bloch_pattern, unpack_pattern
-from .frame_builder import build_frame, FrameParameters
+from .frame_builder import build_frame, FrameParameters, xp, ndimage
 
 
 class GVecs(NamedTuple):
@@ -156,7 +158,7 @@ class IndexedPeaks(NamedTuple):
             ax,
             frame=None,
             max_extent=None,
-            spots=to_array(self.peaks)[:, ::-1],
+            spots=spc.for_backend(to_array(self.peaks)[:, ::-1], spc.NUMPY),
             intensity=2,
             millers=self.hkls,
             scatter_alpha=point_alpha,
@@ -265,6 +267,7 @@ class OrientedPhase(NamedTuple):
         experiment: ExperimentInformation,
         max_excitation_error: float = 0.03,
         max_extent: float | None = None,
+        xp=xp,
     ):
         gen = SimulationGenerator(
             accelerating_voltage=experiment.voltage_kv,
@@ -291,7 +294,7 @@ class OrientedPhase(NamedTuple):
         ).astype(np.int16)
         return SimulatedPeaks(
             complex(0., 0.),
-            to_complex(spots[:-1, ::-1]).ravel(),
+            to_complex(spots[:-1, ::-1], xp=xp).ravel(),
             millers[:-1, ...],
             intensity[:-1, ...],
         )
@@ -303,6 +306,7 @@ class OrientedPhase(NamedTuple):
         max_extent: float | None = None,
         stretch_abc: tuple[float, float, float] = (1., 1., 1.),
         scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
+        xp=xp,
     ):
         pattern = get_bloch_pattern(
             self.atoms,
@@ -313,8 +317,9 @@ class OrientedPhase(NamedTuple):
             voltage=experiment.voltage_kv * 1_000,
             max_extent=max_extent,
             max_excitation_error=max_excitation_error,
+            xp=xp
         )
-        hkls, offsets, intensities = unpack_pattern(pattern)
+        hkls, offsets, intensities = unpack_pattern(pattern, xp=xp)
         return SimulatedPeaks(
             complex(0., 0.),
             offsets,
@@ -331,6 +336,7 @@ class OrientedPhase(NamedTuple):
         scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
         rotate_deg: float = 0.,
         bloch: bool = True,
+        xp=xp,
     ):
         if max_extent is None:
             max_extent = experiment.max_extent
@@ -350,8 +356,9 @@ class OrientedPhase(NamedTuple):
         peaks = fn(
             experiment,
             **kwargs,
+            xp=xp,
         )
-        peaks.offsets[:] *= np.exp(1j * np.deg2rad(rotate_deg))
+        peaks.offsets[:] *= xp.exp(1j * xp.deg2rad(rotate_deg))
         return peaks
 
     def synthetic(
@@ -360,6 +367,8 @@ class OrientedPhase(NamedTuple):
         sim_peaks: SimulatedPeaks,
         distortions: DistortionConfig = DistortionConfig(),
         frame_params: FrameParameters = FrameParameters(),
+        xp=xp,
+        ndimage=ndimage,
     ):
         offsets = sim_peaks.peaks
         intensities = sim_peaks.weights
@@ -375,5 +384,7 @@ class OrientedPhase(NamedTuple):
             orientation=experiment.ellipse_orientation,
             intensities=intensities,
             params=frame_params,
+            xp=xp,
+            ndimage=ndimage,
         )
         return frame

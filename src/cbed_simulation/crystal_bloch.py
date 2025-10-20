@@ -1,4 +1,5 @@
 import os
+
 import numpy as np
 
 from diffsims.generators.zap_map_generator import get_rotation_from_z_to_direction
@@ -11,6 +12,8 @@ from ase import Atoms
 from ase.io import read as read_atoms
 from abtem.bloch import BlochWaves, StructureFactor
 from abtem.measurements import IndexedDiffractionPatterns
+
+from .frame_builder import xp
 
 
 def rotation_for_hkl(cif_path: os.PathLike, hkl: tuple[int, int, int]):
@@ -45,8 +48,12 @@ def get_bloch_pattern(
     thickness_nm: float = 200,
     max_extent: float = 2.,
     max_excitation_error: float = 0.1,
-    device=None,
+    xp=xp,
 ):
+    if xp.__name__ == 'cupy':
+        device = 'gpu'
+    else:
+        device = 'cpu'
     if hasattr(cif_or_atoms, "cell"):
         atoms = cif_or_atoms.copy()
         atoms.cell = atoms.cell.copy()
@@ -61,6 +68,7 @@ def get_bloch_pattern(
         k_max=max_extent * 2,  # maximum scattering vector length (angle?)
         thermal_sigma=0.01,
         parametrization="lobato",
+        device=device
     )
 
     bloch_waves = BlochWaves(
@@ -74,12 +82,13 @@ def get_bloch_pattern(
     patterns = bloch_waves.calculate_diffraction_patterns(
         [thickness_nm * 10.],
     )
-    return patterns.compute(progress_bar=progress)[0]
+    return patterns.compute(progress_bar=progress)[0].to_cpu()
 
 
 def unpack_pattern(
     patterns: IndexedDiffractionPatterns,
     intensity_threshold: float = 1e-10,
+    xp=xp
 ):
     bloch_positions = tuple(
         complex(*position[:2]) for position, intensity
@@ -92,10 +101,10 @@ def unpack_pattern(
         if intensity > intensity_threshold
     }
 
-    spots = np.asarray(bloch_positions)
-    spots *= np.exp(1j * np.pi)
+    spots = xp.asarray(bloch_positions)
+    spots *= xp.exp(1j * np.pi)
     hkls = tuple(bloch_intensity_dict.keys())
-    intensities = np.asarray(
+    intensities = xp.asarray(
         tuple(bloch_intensity_dict.values())
     )
     return hkls, spots, intensities
