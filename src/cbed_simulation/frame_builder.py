@@ -1,18 +1,174 @@
 from typing import NamedTuple, Sequence
+
 import numpy as np
 from skimage.transform import resize
 from skimage.draw import ellipse
-from skimage.filters import gaussian
-from perlin_numpy import generate_perlin_noise_2d
+
+import sparseconverter
+
 
 try:
-    import numpy as xp
-    #import cupy as xp
+    import cupy as xp
+    import cupyx.scipy.ndimage as ndimage
 except ModuleNotFoundError:
     import numpy as xp
+    import scipy.ndimage as ndimage
 
 
-def fourier_shift(image_fft: np.ndarray, shift: np.ndarray, out=None):
+# interpolant() and generate_perlin_noise_2d() copied from
+# https://github.com/pvigier/perlin-numpy/blob/master/perlin_numpy/perlin2d.py
+# (MIT licensed) and adapted to make it compatible with Cupy
+
+def interpolant(t):
+    return t*t*t*(t*(t*6 - 15) + 10)
+
+
+def generate_perlin_noise_2d(
+        shape, res, tileable=(False, False), interpolant=interpolant,
+        xp=xp
+):
+    """Generate a 2D numpy array of perlin noise.
+
+    Args:
+        shape: The shape of the generated array (tuple of two ints).
+            This must be a multple of res.
+        res: The number of periods of noise to generate along each
+            axis (tuple of two ints). Note shape must be a multiple of
+            res.
+        tileable: If the noise should be tileable along each axis
+            (tuple of two bools). Defaults to (False, False).
+        interpolant: The interpolation function, defaults to
+            t*t*t*(t*(t*6 - 15) + 10).
+
+    Returns:
+        A numpy array of shape shape with the generated noise.
+
+    Raises:
+        ValueError: If shape is not a multiple of res.
+    """
+    delta = (res[0] / shape[0], res[1] / shape[1])
+    d = (shape[0] // res[0], shape[1] // res[1])
+    grid = xp.mgrid[0:res[0]:delta[0], 0:res[1]:delta[1]]\
+             .transpose(1, 2, 0) % 1
+    # Gradients
+    angles = 2*xp.pi*xp.random.rand(res[0]+1, res[1]+1)
+    gradients = xp.dstack((xp.cos(angles), xp.sin(angles)))
+    if tileable[0]:
+        gradients[-1, :] = gradients[0, :]
+    if tileable[1]:
+        gradients[:, -1] = gradients[:, 0]
+
+    gradients = gradients.repeat(d[0], axis=0).repeat(d[1], axis=1)
+
+    g00 = gradients[:-d[0], :-d[1]]
+    g10 = gradients[d[0]:, :-d[1]]
+    g01 = gradients[:-d[0], d[1]:]
+    g11 = gradients[d[0]:, d[1]:]
+
+    # Ramps
+    n00 = xp.sum(
+        xp.dstack((grid[:, :, 0], grid[:, :, 1])) * g00,
+        axis=2,
+    )
+    n10 = xp.sum(
+        xp.dstack((grid[:, :, 0] - 1, grid[:, :, 1])) * g10,
+        axis=2,
+    )
+    n01 = xp.sum(
+        xp.dstack((grid[:, :, 0], grid[:, :, 1] - 1)) * g01,
+        axis=2,
+    )
+    n11 = xp.sum(
+        xp.dstack((grid[:, :, 0] - 1, grid[:, :, 1] - 1)) * g11,
+        axis=2,
+    )
+
+    # Interpolation
+    t = interpolant(grid)
+    n0 = n00 * (1 - t[:, :, 0]) + t[:, :, 0] * n10
+    n1 = n01 * (1 - t[:, :, 0]) + t[:, :, 0] * n11
+    return xp.sqrt(2) * ((1 - t[:, :, 1]) * n0 + t[:, :, 1] * n1)
+
+
+# Until marker ***
+# Taken from ptychography40
+# https://github.com/Ptychography-4-0/ptychography/blob/master/src/ptychography40/reconstruction/common.py
+# 3cecf896f409a6f53ad782b7d57cab7438e995b9
+# Relicensed from original author Dieter Weber under MIT license for this project
+
+def offset(s1, s2):
+    o1, ss1 = s1
+    o2, ss2 = s2
+    return o2 - o1
+
+
+def shift_by(sl, shift):
+    origin, shape = sl
+    return (
+        origin + shift,
+        shape
+    )
+
+
+def shift_to(s1, origin):
+    o1, ss1 = s1
+    return (
+        origin,
+        ss1
+    )
+
+
+def intersection(s1, s2):
+    o1, ss1 = s1
+    o2, ss2 = s2
+    # Adapted from libertem.common.slice
+    new_origin = np.maximum(o1, o2)
+    new_shape = np.minimum(
+        (o1 + ss1) - new_origin,
+        (o2 + ss2) - new_origin,
+    )
+    new_shape = np.maximum(0, new_shape)
+    return (new_origin, new_shape)
+
+
+def get_shifted(arr_shape, tile_origin, tile_shape, shift):
+    '''
+    Calculate the slices to cut out a shifted part of a 2D source
+    array and place it into a target array, including tiling support.
+
+    This works with negative and positive integer shifts.
+    '''
+    # TODO this could be adapted for full sig, nav, n-D etc support
+    # and included as a method in Slice?
+    full_slice = (np.array((0, 0)), arr_shape)
+    tileslice = (tile_origin, tile_shape)
+    shifted = shift_by(tileslice, shift)
+    isect = intersection(full_slice, shifted)
+    if np.prod(isect[1]) == 0:
+        return (
+            np.array([(0, 0), (0, 0)]),
+            np.array([0, 0])
+        )
+    # We measure by how much we have clipped the zero point
+    # This is zero if we didn't shift into the negative region beyond the original array
+    clip = offset(shifted, isect)
+    # Now we move the intersection to (0, 0) plus the amount we clipped
+    # so that the overlap region is moved by the correct amount, in total
+    targetslice = shift_by(shift_to(isect, np.array((0, 0))), clip)
+    start = targetslice[0]
+    length = targetslice[1]
+    target_tup = np.stack((start, start+length), axis=1)
+    offsets = isect[0] - targetslice[0]
+    return (target_tup, offsets)
+
+
+def to_slices(target_tup, offsets):
+    target_slice = tuple(slice(s[0], s[1]) for s in target_tup)
+    source_slice = tuple(slice(s[0] + o, s[1] + o) for (s, o) in zip(target_tup, offsets))
+    return (target_slice, source_slice)
+
+
+def fourier_shift(image_fft: np.ndarray, shift: np.ndarray, out=None, xp=xp):
     """
     Implements Fourier shifting like scipy.ndimage
     but with numpy broadcasting to apply multiple
@@ -53,11 +209,11 @@ def fourier_shift(image_fft: np.ndarray, shift: np.ndarray, out=None):
     return out
 
 
-def gen_noise(shape, scale=None):
+def gen_noise(shape, scale=None, xp=xp):
     if scale is None:
         scale = 32 * (min(shape) // 512)
     true_shape = tuple(s + (scale - (s % scale)) for s in shape)
-    noise = generate_perlin_noise_2d(true_shape, (scale, scale))
+    noise = generate_perlin_noise_2d(true_shape, (scale, scale), xp=xp)
     noise -= noise.min()
     noise /= noise.max()
     noise += 1
@@ -92,13 +248,13 @@ def apply_strain(e_xx, e_xy, e_yy, e_rot, g1, g2):
 def aa_ellipse(frame_shape, cy, cx, major, scale, minor=None, orientation=0., upsample=4):
     assert isinstance(upsample, int)
     h, w = frame_shape
-    frame = np.zeros((int(h * upsample), int(w * upsample)), dtype=np.float32)
+    frame = np.zeros((int(h * upsample), int(w * upsample)), dtype=xp.float32)
     cy = cy * upsample
     cx = cx * upsample
     if minor is None:
         minor = major
-    major = int(np.round(major * upsample))
-    minor = int(np.round(minor * upsample))
+    major = int(xp.round(major * upsample))
+    minor = int(xp.round(minor * upsample))
     minor, major = sorted((minor, major))
     rr, cc = ellipse(
         cy, cx, minor, major, shape=frame.shape, rotation=np.deg2rad(orientation)
@@ -143,6 +299,8 @@ def build_frame(
     orientation: float = 0.,
     params: FrameParameters = FrameParameters(),
     intensities: np.ndarray | None = None,
+    xp=xp,
+    ndimage=ndimage,
 ) -> np.ndarray:
     p = params
     h, w = frame_shape
@@ -155,29 +313,41 @@ def build_frame(
         (h + 2 * buffer, w + 2 * buffer)
     ).astype(dtype=np.float32)
     if p.textured:
-        texture = gen_noise(frame_shape)
-        texture = np.pad(
+        texture = gen_noise(frame_shape, xp=xp)
+        texture = xp.pad(
             texture,
             ((buffer, buffer), (buffer, buffer))
         )
         assert texture.shape == frame.shape
 
-    # Make base frame
-    cy, cx = np.asarray(frame.shape) // 2
-    base_centre = complex(cx, cy)
-    base_frame = aa_ellipse(frame.shape, cy, cx, r, p.disk_brightness, minor, orientation)
+    if minor is not None:
+        bounding_r = max(r, minor)
+    else:
+        bounding_r = r
+    cropped_size = 2 * bounding_r + 2
     if p.disk_blur_sigma > 0:
-        base_frame = gaussian(base_frame, sigma=p.disk_blur_sigma)
+        cropped_size += 2 * 3 * p.disk_blur_sigma
+    cropped_size = int(xp.ceil(cropped_size))
+    # Make base frame
+    cy = cx = cropped_size // 2
+    base_centre = complex(cx, cy)
+    base_frame = xp.array(aa_ellipse(
+        (cropped_size, cropped_size), cy, cx, r, p.disk_brightness, minor, orientation
+    ))
+
+    if p.disk_blur_sigma > 0:
+
+        base_frame = ndimage.gaussian_filter(base_frame, sigma=p.disk_blur_sigma)
     base_frame = xp.fft.fft2(xp.asarray(base_frame.copy()))
 
     # Make the radius / extinction map
-    eh, ew = base_frame.shape
+    eh, ew = frame.shape
     ccx, ccy = expanded_centre.real, expanded_centre.imag
-    radius = np.linalg.norm(
-        np.stack(
-            np.meshgrid(
-                np.arange(eh) - ccy,
-                np.arange(ew) - ccx,
+    radius = xp.linalg.norm(
+        xp.stack(
+            xp.meshgrid(
+                xp.arange(eh) - ccy,
+                xp.arange(ew) - ccx,
                 indexing="ij",
             ),
             axis=0
@@ -211,32 +381,49 @@ def build_frame(
         valid_shifts.append((this_shift.imag, this_shift.real))
         valid_intensities.append(intensity)
 
-    frame = xp.fft.ifft2(
+    valid_shifts = xp.asarray(valid_shifts)
+    pixel_shifts, subpixel_shifts = xp.divmod(valid_shifts, 1)
+
+    subpixel_frame = xp.fft.ifft2(
         fourier_shift(
-            xp.asarray(base_frame), valid_shifts,
+            xp.asarray(base_frame), subpixel_shifts,
+            xp=xp,
         )
     ).real
-    frame *= xp.asarray(valid_intensities)[:, np.newaxis, np.newaxis]
+
+    subpixel_frame *= xp.asarray(valid_intensities)[:, np.newaxis, np.newaxis]
+
+    frame = xp.zeros(shape=subpixel_frame.shape[:1] + frame.shape, dtype=subpixel_frame.dtype)
+
+    # Do slice computations on CPU
+    pixel_shifts = sparseconverter.for_backend(pixel_shifts, sparseconverter.NUMPY)
+    for i, pixel_shift in enumerate(pixel_shifts):
+        target_tup, offsets = get_shifted(
+            arr_shape=np.array(subpixel_frame.shape[1:]),
+            tile_origin=np.array((0, 0)),
+            tile_shape=np.array(frame.shape[1:]),
+            # No idea why negative ut it is what it is...
+            shift=(-pixel_shift).astype(int),
+        )
+        target, source = to_slices(target_tup, offsets)
+        frame[i][target] = subpixel_frame[i][source]
+
     if p.textured:
         frame *= xp.asarray(texture)[xp.newaxis, ...]
     frame *= xp.asarray(multiplier)[xp.newaxis, ...]
     frame = xp.max(frame, axis=0)
     frame *= p.frame_brightness
-    try:
-        frame = frame.get()
-    except AttributeError:
-        pass
 
     if p.inelastic_scatter_sigma > 0.:
-        gauss_frame = gaussian(frame, sigma=p.inelastic_scatter_sigma)
-        noise = np.random.poisson(np.clip(gauss_frame.ravel(), 0.001, np.inf))
+        gauss_frame = ndimage.gaussian_filter(frame, sigma=p.inelastic_scatter_sigma)
+        noise = xp.random.poisson(xp.clip(gauss_frame.ravel(), 0.001, xp.inf))
         frame += noise.reshape(frame.shape)
     if p.additive_noise_scale > 0.:
         frame += (
-            np.random.poisson(
+            xp.random.poisson(
                 (radius ** 2) * frame.max() * p.additive_noise_scale,
             )
             .astype(int)
             .reshape(frame.shape)
         )
-    return np.round(frame[buffer: -buffer, buffer: -buffer]).astype(int)
+    return xp.round(frame[buffer: -buffer, buffer: -buffer]).astype(int)
