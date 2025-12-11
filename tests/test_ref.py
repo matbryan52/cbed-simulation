@@ -85,14 +85,11 @@ def test_ref_comparison(cif_path: os.PathLike, ref_path: os.PathLike):
 
     # Compare ref & sim
     common_hkls = sim_hkls.intersection(ref_hkls)
-    match_pos = np.zeros((len(common_hkls), 2), dtype=complex)
-    for idx, hkl in enumerate(common_hkls):
-        sim_pos = sim_peaks.spot_position(hkl, centre_zero=True)
-        ref_pos = ref_peaks.spot_position(hkl, centre_zero=True)
-        match_pos[idx] = [sim_pos, ref_pos]
+    ref_pos = tuple(ref_peaks.spot_position(hkl, centre_zero=True) for hkl in common_hkls)
+    sim_pos = tuple(sim_peaks.spot_position(hkl, centre_zero=True) for hkl in common_hkls)
 
     assert_allclose(
-        actual=match_pos[:, 0],
-        desired=match_pos[:, 1],
+        actual=sim_pos,
+        desired=ref_pos,
         atol=2.5e-2,
     )
