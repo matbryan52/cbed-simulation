@@ -16,16 +16,17 @@ from scipy import ndimage
 def make_frame(
         experiment, phase, frame_params,
         stretch_abc=(1., 1., 1.), scale_bc_ac_ab=(1., 1., 1.), rotate_deg=0.,
-        max_excitation_error=None, xp=xp, ndimage=xndimage):
+        max_excitation_error=None, bloch=False, xp=xp, ndimage=xndimage):
     sim_peaks = phase.peak_positions(
         experiment, stretch_abc=stretch_abc, scale_bc_ac_ab=scale_bc_ac_ab,
         rotate_deg=rotate_deg,
         max_excitation_error=max_excitation_error,
+        bloch=bloch,
         xp=xp
     )
     # Play with the intensities to make the transmitted beam more similar to the diffracted beams
-    sim_peaks.modify_intensities(power=0.25)
-    sim_peaks.modify_000_intensity(multiply=2)
+    #sim_peaks.modify_intensities(power=0.25)
+    #sim_peaks.modify_000_intensity(multiply=2)
     sim_frame = phase.synthetic(
         experiment, sim_peaks, frame_params=frame_params, xp=xp, ndimage=ndimage
     )

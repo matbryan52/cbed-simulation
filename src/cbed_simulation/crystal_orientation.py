@@ -42,6 +42,7 @@ class ExperimentInformation(NamedTuple):
     pattern_rotation: float = 0.  # degrees
     voltage_kv: float = 200.
     precession_angle: float = 1.
+    debye_waller_factors: dict | None = None
 
     @property
     def max_extent(self) -> float:
@@ -267,6 +268,8 @@ class OrientedPhase(NamedTuple):
         experiment: ExperimentInformation,
         max_excitation_error: float = 0.03,
         max_extent: float | None = None,
+        stretch_abc: tuple[float, float, float] = (1., 1., 1.),
+        scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
         xp=xp,
     ):
         gen = SimulationGenerator(
@@ -279,6 +282,7 @@ class OrientedPhase(NamedTuple):
             reciprocal_radius=max_extent,
             max_excitation_error=max_excitation_error,
             with_direct_beam=True,
+            debye_waller_factors=experiment.debye_waller_factors,
         )
         params = dict(
             in_plane_angle=0.,  # anti-clockwise rotation of simulated peaks in degrees
@@ -295,8 +299,8 @@ class OrientedPhase(NamedTuple):
         return SimulatedPeaks(
             complex(0., 0.),
             to_complex(spots[:-1, ::-1], xp=xp).ravel(),
-            millers[:-1, ...],
-            intensity[:-1, ...],
+            xp.array(millers[:-1, ...]),
+            xp.array(intensity[:-1, ...]),
         )
 
     def _dynamical_sim(
@@ -358,7 +362,8 @@ class OrientedPhase(NamedTuple):
             **kwargs,
             xp=xp,
         )
-        peaks.offsets[:] *= xp.exp(1j * xp.deg2rad(rotate_deg))
+        tmp = xp.exp(1j * xp.deg2rad(rotate_deg))
+        peaks.offsets[:] *= tmp
         return peaks
 
     def synthetic(

@@ -211,7 +211,7 @@ def fourier_shift(image_fft: np.ndarray, shift: np.ndarray, out=None, xp=xp):
 
 def gen_noise(shape, scale=None, xp=xp):
     if scale is None:
-        scale = 32 * (min(shape) // 512)
+        scale = min(shape)
     true_shape = tuple(s + (scale - (s % scale)) for s in shape)
     noise = generate_perlin_noise_2d(true_shape, (scale, scale), xp=xp)
     noise -= noise.min()
@@ -288,6 +288,7 @@ class FrameParameters(NamedTuple):
     frame_brightness: float = 40.
     inelastic_scatter_sigma: float = 4.
     additive_noise_scale: float = 0.1
+    multiplicative_noise_scale: float = 0
 
 
 def build_frame(
@@ -426,4 +427,6 @@ def build_frame(
             .astype(int)
             .reshape(frame.shape)
         )
+    if p.multiplicative_noise_scale:
+        frame = xp.random.poisson(frame * p.multiplicative_noise_scale)
     return xp.round(frame[buffer: -buffer, buffer: -buffer]).astype(int)
