@@ -65,7 +65,9 @@ def get_bloch_pattern(
     atoms.set_cell(cellpar, scale_atoms=True)
     structure_factor = StructureFactor(
         atoms,
-        k_max=max_extent * 2,  # maximum scattering vector length (angle?)
+        # Parameter name changed recently, FIXME figure out how to support both
+        # k_max=max_extent * 2,  # maximum scattering vector length (angle?)
+        g_max=max_extent * 2,  # maximum scattering vector length (angle?)
         thermal_sigma=0.01,
         parametrization="lobato",
         device=device
@@ -75,7 +77,9 @@ def get_bloch_pattern(
         structure_factor=structure_factor,
         energy=voltage,
         sg_max=max_excitation_error,  # maximum excitation error,
-        k_max=max_extent,
+        # Parameter name changed recently, FIXME figure out how to support both
+        # k_max=max_extent,
+        g_max=max_extent,
         orientation_matrix=rotation.to_matrix().squeeze(),
         device=device,
     )

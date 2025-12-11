@@ -13,7 +13,7 @@ def to_complex(array, xp=xp) -> complex | np.ndarray[complex]:
     """
     if xp.asarray(array).size == 2:
         return complex(*(array[::-1]))
-    return array[..., :, 1] + array[..., 0] * 1j
+    return xp.array(array[..., :, 1] + array[..., 0] * 1j)
 
 
 def to_array(complex_array, xp=xp):
