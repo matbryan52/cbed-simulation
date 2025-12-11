@@ -6,7 +6,6 @@ import numpy as np
 from orix.quaternion import Rotation
 from orix.crystal_map import Phase
 from orix.vector.miller import Miller
-from orix.vector import Vector3d
 from diffsims.generators.simulation_generator import SimulationGenerator
 from diffsims.generators.zap_map_generator import get_rotation_from_z_to_direction
 from diffpy.structure.parsers.p_cif import P_cif
@@ -17,6 +16,12 @@ from .utils import to_complex, to_array
 from .distortions import DistortionConfig, apply_distortion
 from .crystal_bloch import scale_and_rotate, get_bloch_pattern, unpack_pattern
 from .frame_builder import build_frame, FrameParameters
+
+
+class EulerAngles(NamedTuple):
+    phi1: float
+    Phi: float
+    phi2: float
 
 
 class GVecs(NamedTuple):
