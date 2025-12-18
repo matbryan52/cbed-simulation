@@ -14,6 +14,26 @@ from cbed_simulation.crystal_orientation import EulerAngles, OrientedPhase, Expe
 ROOT_PATH = pathlib.Path(__file__).parent
 
 
+def reduce_orientation(crystal: Crystal, matrix: np.ndarray):
+    family = np.zeros_like(matrix)
+    for a0 in range(3):
+        in_range = np.all(
+            np.sum(
+                crystal.symmetry_reduction
+                * matrix[:, a0][None, :, None],
+                axis=1,
+            )
+            >= 0,
+            axis=1,
+        )
+
+        family[:, a0] = (
+            crystal.symmetry_operators[np.argmax(in_range)]
+            @ matrix[:, a0]
+        )
+    return family
+
+
 @pytest.fixture(scope="module")
 def si_plan():
     cif_path = ROOT_PATH / "Si.cif"
@@ -100,6 +120,8 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
 
     # Extract and transform orientation
     or_matrix = orientation_map.matrix[0, 0, 0]
+
+    # Convert to ASTAR / cbed_simulation convention
     angles = RotationSP.from_matrix(or_matrix).as_euler("zxz")
     angles[0] -= np.pi/2
     angles *= -1
@@ -116,16 +138,22 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
     or_matches_peaks = peak_matches.any(axis=1)
     sim_matches_peaks = peak_matches.any(axis=0)
 
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(figsize=(6, 6), dpi=150)
-    ax.axhline(alpha=0.2, color="k")
-    ax.axvline(alpha=0.2, color="k")
-    ax.plot(sim_peaks.offsets[sim_matches_peaks].real, sim_peaks.offsets[sim_matches_peaks].imag, 'ko', label="Input-EA", alpha=0.5)
-    ax.plot(or_sim_peaks.offsets[or_matches_peaks].real, or_sim_peaks.offsets[or_matches_peaks].imag, 'rx', label="py4DSTEM-EA")
-    ax.plot(sim_peaks.offsets[~sim_matches_peaks].real, sim_peaks.offsets[~sim_matches_peaks].imag, 'k.', label="Input-EA-extra", alpha=0.33)
-    ax.plot(or_sim_peaks.offsets[~or_matches_peaks].real, or_sim_peaks.offsets[~or_matches_peaks].imag, 'r.', label="py4DSTEM-EA-extra", alpha=0.33)
-    ax.yaxis.set_inverted(True)
-    ax.axis("equal")
-    ax.legend()
-    fig.tight_layout()
-    plt.savefig(ROOT_PATH / f"out_{cif_path.stem}_{euler}.png")
+    if False:
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(6, 6), dpi=150)
+        ax.axhline(alpha=0.2, color="k")
+        ax.axvline(alpha=0.2, color="k")
+        ax.plot(sim_peaks.offsets[sim_matches_peaks].real, sim_peaks.offsets[sim_matches_peaks].imag, 'ko', label="Input-EA", alpha=0.5)
+        ax.plot(or_sim_peaks.offsets[or_matches_peaks].real, or_sim_peaks.offsets[or_matches_peaks].imag, 'rx', label="py4DSTEM-EA")
+        ax.plot(sim_peaks.offsets[~sim_matches_peaks].real, sim_peaks.offsets[~sim_matches_peaks].imag, 'k.', label="Input-EA-extra", alpha=0.33)
+        ax.plot(or_sim_peaks.offsets[~or_matches_peaks].real, or_sim_peaks.offsets[~or_matches_peaks].imag, 'r.', label="py4DSTEM-EA-extra", alpha=0.33)
+        ax.yaxis.set_inverted(True)
+        ax.axis("equal")
+        ax.legend()
+        ax.set_title(f"In: {euler}, Out: {tuple(np.round(angles, decimals=1))}")
+        fig.tight_layout()
+        plt.savefig(ROOT_PATH / f"out_{cif_path.stem}_{euler}.png")
+
+    match_frac = 0.5
+    assert or_matches_peaks.sum() > match_frac * or_matches_peaks.size
+    assert sim_matches_peaks.sum() > match_frac * sim_matches_peaks.size
