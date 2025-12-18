@@ -219,7 +219,6 @@ class OrientedPhase(NamedTuple):
         cls,
         cif_path: os.PathLike,
         orientation: tuple[int, int, int] | Rotation,
-        pattern_rotation: float = 0.,
     ):
         cif_path = pathlib.Path(cif_path)
         with cif_path.open('r') as fp:
@@ -232,27 +231,12 @@ class OrientedPhase(NamedTuple):
             space_group=spacegroup,
             structure=copy.deepcopy(structure),
         )
-        if (
-            isinstance(orientation, (np.ndarray, tuple, list))
-            and all(isinstance(v, int) for v in orientation)
-        ):
-            miller = Miller(hkl=orientation, phase=phase)
-            orientation = get_rotation_from_z_to_direction(
-                structure,
-                miller.uvw.squeeze(),
-            )
+        if not isinstance(orientation, Rotation):
             orientation = Rotation.from_euler(
                 orientation,
+                direction="crystal2lab",
                 degrees=True,
             )
-            v_start = Vector3d.zvector()
-            v_end = orientation * v_start
-            in_plane = Rotation.from_axes_angles(
-                v_end,
-                pattern_rotation,
-                degrees=True,
-            )
-            orientation = in_plane * orientation
         return cls(
             phase,
             read_atoms(cif_path),
@@ -319,7 +303,7 @@ class OrientedPhase(NamedTuple):
     ):
         pattern = get_bloch_pattern(
             self.atoms,
-            self.orientation.inv(),
+            self.orientation,
             progress=False,
             stretch_abc=stretch_abc,
             scale_bc_ac_ab=scale_bc_ac_ab,
@@ -329,6 +313,7 @@ class OrientedPhase(NamedTuple):
             xp=xp
         )
         hkls, offsets, intensities = unpack_pattern(pattern, xp=xp)
+        offsets.real *= -1
         return SimulatedPeaks(
             complex(0., 0.),
             offsets,
