@@ -42,7 +42,8 @@ def si_plan():
         "plan, euler",
         (
             ("si_plan", (75, 10, 10)),
-            # ("si_plan", (10, 15, 0)),
+            ("si_plan", (10, 15, 0)),
+            ("si_plan", (0, 60, 10)),
         )
 )
 def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
@@ -110,12 +111,21 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
         experiment, max_excitation_error=0.05,
     )
 
-    # import matplotlib.pyplot as plt
-    # fig, ax = plt.subplots(figsize=(6, 6), dpi=150)
-    # ax.plot(sim_peaks.peaks.real, sim_peaks.peaks.imag, 'ko', label="Input-EA", alpha=0.5)
-    # ax.plot(or_sim_peaks.peaks.real, or_sim_peaks.peaks.imag, 'rx', label="py4DSTEM-EA")
-    # ax.yaxis.set_inverted(True)
-    # ax.axis("equal")
-    # ax.legend()
-    # fig.tight_layout()
-    # plt.savefig(ROOT_PATH / "out.png")
+    peak_distances = np.abs(or_sim_peaks.offsets[:, np.newaxis] - sim_peaks.offsets[np.newaxis, :])
+    peak_matches = peak_distances < 5e-2
+    or_matches_peaks = peak_matches.any(axis=1)
+    sim_matches_peaks = peak_matches.any(axis=0)
+
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=150)
+    ax.axhline(alpha=0.2, color="k")
+    ax.axvline(alpha=0.2, color="k")
+    ax.plot(sim_peaks.offsets[sim_matches_peaks].real, sim_peaks.offsets[sim_matches_peaks].imag, 'ko', label="Input-EA", alpha=0.5)
+    ax.plot(or_sim_peaks.offsets[or_matches_peaks].real, or_sim_peaks.offsets[or_matches_peaks].imag, 'rx', label="py4DSTEM-EA")
+    ax.plot(sim_peaks.offsets[~sim_matches_peaks].real, sim_peaks.offsets[~sim_matches_peaks].imag, 'k.', label="Input-EA-extra", alpha=0.33)
+    ax.plot(or_sim_peaks.offsets[~or_matches_peaks].real, or_sim_peaks.offsets[~or_matches_peaks].imag, 'r.', label="py4DSTEM-EA-extra", alpha=0.33)
+    ax.yaxis.set_inverted(True)
+    ax.axis("equal")
+    ax.legend()
+    fig.tight_layout()
+    plt.savefig(ROOT_PATH / f"out_{cif_path.stem}_{euler}.png")
