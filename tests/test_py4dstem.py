@@ -1,0 +1,110 @@
+import os
+import pathlib
+import pytest
+import numpy as np
+
+import py4DSTEM
+from py4DSTEM.braggvectors.braggvectors import BraggVectors
+from emdfile import PointListArray, PointList
+from scipy.spatial.transform import Rotation as RotationSP
+
+from cbed_simulation.crystal_orientation import EulerAngles, OrientedPhase, ExperimentInformation
+
+
+ROOT_PATH = pathlib.Path(__file__).parent
+
+
+@pytest.mark.parametrize(
+        "cif_path, euler",
+        (
+            (ROOT_PATH / "Si.cif", (75, 10, 10)),
+        )
+)
+def test_py4DSTEM_orientation(cif_path: os.PathLike, euler: EulerAngles):
+    experiment = ExperimentInformation(
+        frame_shape=(512, 512),
+        transmitted_centre_px=complex(256, 256),
+        radius_px=12,
+        pattern_scale_factor=119.,  # pixels / Å-1
+    )
+
+    phase = OrientedPhase.from_cif(
+        cif_path=cif_path,
+        orientation=euler,
+    )
+    sim_peaks = phase.peak_positions(
+        experiment, max_excitation_error=0.05,
+    )
+    sim_peaks_px = sim_peaks.to_pixels(experiment)
+
+    dt = [("qx", np.float64), ("qy", np.float64), ("intensity", np.float64)]
+    pointlist = PointListArray(
+        dtype=dt,
+        shape=(1, 1),
+        name="_v_uncal",
+    )
+    points = [
+        tuple(a)
+        for a in
+        zip(sim_peaks_px.peaks.imag, sim_peaks_px.peaks.real, sim_peaks_px.weights)
+    ]
+    pointlist[0, 0] = PointList(
+        np.asarray(points, dtype=dt),
+    )
+    braggpeaks = BraggVectors(
+        (1, 1), experiment.frame_shape,
+    )
+    braggpeaks.set_raw_vectors(pointlist)
+    braggpeaks.calibration.set_origin(
+        (sim_peaks_px.pos_000.real, sim_peaks_px.pos_000.imag),
+    )
+    braggpeaks.calibration.set_Q_pixel_size(1 / experiment.pattern_scale_factor)
+    braggpeaks.calibration.set_Q_pixel_units('A^-1')
+    braggpeaks.setcal()
+
+    # Load crystal
+    crystal = py4DSTEM.process.diffraction.Crystal.from_CIF(
+        CIF=cif_path,
+        conventional_standard_structure=True,
+    )
+
+    # Create orientation plan
+    k_max = 2.0
+    angle_step_in_plane = angle_step_zone_axis = 5.
+    crystal.calculate_structure_factors(k_max=k_max)
+    crystal.orientation_plan(
+        zone_axis_range='full',
+        accel_voltage=200e3,
+        precession_angle_degrees=1.,
+        angle_step_zone_axis=angle_step_zone_axis,
+        angle_step_in_plane=angle_step_in_plane,
+        progress_bar=False,
+    )
+    # Create and plot orientation map
+    orientation_map = crystal.match_orientations(
+        braggpeaks,
+        progress_bar=False,
+    )
+
+    # Extract and transform orientation
+    or_matrix = orientation_map.matrix[0, 0, 0]
+    angles = RotationSP.from_matrix(or_matrix).as_euler("zxz")
+    angles[0] -= np.pi/2
+    angles *= -1
+    angles = np.rad2deg(angles)
+
+    # Simulate peak positions from the inferred orientation
+    or_phase = OrientedPhase.from_cif(cif_path=cif_path, orientation=angles)
+    or_sim_peaks = or_phase.peak_positions(
+        experiment, max_excitation_error=0.05,
+    )
+
+    # import matplotlib.pyplot as plt
+    # fig, ax = plt.subplots(figsize=(6, 6), dpi=150)
+    # ax.plot(sim_peaks.peaks.real, sim_peaks.peaks.imag, 'ko', label="Input-EA", alpha=0.5)
+    # ax.plot(or_sim_peaks.peaks.real, or_sim_peaks.peaks.imag, 'rx', label="py4DSTEM-EA")
+    # ax.yaxis.set_inverted(True)
+    # ax.axis("equal")
+    # ax.legend()
+    # fig.tight_layout()
+    # plt.savefig(ROOT_PATH / "out.png")

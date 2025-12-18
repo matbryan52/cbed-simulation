@@ -1,4 +1,5 @@
 import numpy as np
+from typing import Literal
 from skimage.filters import sobel
 from skimage.transform import rescale
 from scipy.ndimage import center_of_mass, fourier_shift
@@ -52,9 +53,10 @@ def template_from_vacuum(
     cyx: tuple[float, float],
     r_estimate: float,
     beam_rescale_factor: float = 0.95,
-    edge_rescale_factor: float = 1.05,
+    edge_rescale_factor: float = 1.025,
     clip_max_frac: float = 0.5,
     sigmoid_taper_frac: float = 1.5,
+    shifted: Literal["fourier", "bilinear"] | None = None,
 ):
     # equivalent of get_vacuum_probe / add_vacuum_region
     vac_frame = frame * sigmoid_2d(
