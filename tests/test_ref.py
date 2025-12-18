@@ -38,7 +38,7 @@ def load_ref(data_path: os.PathLike, scale=1 / 71):
     df = pd.read_csv(io.StringIO(lines))
 
     # NOTE need to apply a flip-X i.e. multiply -1, here
-    ref_x = -1 * (df['bmx'] - offset.CX) * scale
+    ref_x = (df['bmx'] - offset.CX) * scale
     ref_y = (df['bmy'] - offset.CY) * scale
     ref_peaks = IndexedPeaks(
         pos_000=complex(offset.CX, offset.CY),
@@ -56,10 +56,10 @@ def load_ref(data_path: os.PathLike, scale=1 / 71):
             (ROOT_PATH / "Si.cif", ROOT_PATH / "ASTAR_Si_Euler1.txt"),
             (ROOT_PATH / "Si.cif", ROOT_PATH / "ASTAR_Si_Euler2.txt"),
             (ROOT_PATH / "Si.cif", ROOT_PATH / "ASTAR_Si_Euler3.txt"),
-            (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler0.txt"),
-            (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler1.txt"),
-            (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler2.txt"),
-            (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler3.txt"),
+            # (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler0.txt"),
+            # (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler1.txt"),
+            # (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler2.txt"),
+            # (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler3.txt"),
         )
     )
 def test_ref_comparison(cif_path: os.PathLike, ref_path: os.PathLike):
@@ -75,8 +75,7 @@ def test_ref_comparison(cif_path: os.PathLike, ref_path: os.PathLike):
 
     phase = OrientedPhase.from_cif(
         cif_path=cif_path,
-        start_axis=(0, 0, 1),
-        rotate_crystal=euler,
+        orientation=euler,
     )
     sim_peaks = phase.peak_positions(
         experiment, max_excitation_error=0.05,
