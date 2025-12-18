@@ -1,9 +1,9 @@
-import os
 import pathlib
 import pytest
 import numpy as np
 
 import py4DSTEM
+from py4DSTEM.process.diffraction.crystal import Crystal
 from py4DSTEM.braggvectors.braggvectors import BraggVectors
 from emdfile import PointListArray, PointList
 from scipy.spatial.transform import Rotation as RotationSP
@@ -14,13 +14,42 @@ from cbed_simulation.crystal_orientation import EulerAngles, OrientedPhase, Expe
 ROOT_PATH = pathlib.Path(__file__).parent
 
 
+@pytest.fixture(scope="module")
+def si_plan():
+    cif_path = ROOT_PATH / "Si.cif"
+    # Load crystal
+    crystal = py4DSTEM.process.diffraction.Crystal.from_CIF(
+        CIF=cif_path,
+        conventional_standard_structure=True,
+    )
+
+    # Create orientation plan
+    k_max = 2.0
+    angle_step_in_plane = angle_step_zone_axis = 5.
+    crystal.calculate_structure_factors(k_max=k_max)
+    crystal.orientation_plan(
+        zone_axis_range='full',
+        accel_voltage=200e3,
+        precession_angle_degrees=1.,
+        angle_step_zone_axis=angle_step_zone_axis,
+        angle_step_in_plane=angle_step_in_plane,
+        progress_bar=False,
+    )
+    yield cif_path, crystal
+
+
 @pytest.mark.parametrize(
-        "cif_path, euler",
+        "plan, euler",
         (
-            (ROOT_PATH / "Si.cif", (75, 10, 10)),
+            ("si_plan", (75, 10, 10)),
+            # ("si_plan", (10, 15, 0)),
         )
 )
-def test_py4DSTEM_orientation(cif_path: os.PathLike, euler: EulerAngles):
+def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
+    cif_path, crystal = request.getfixturevalue(plan)
+    cif_path: pathlib.Path
+    crystal: Crystal
+
     experiment = ExperimentInformation(
         frame_shape=(512, 512),
         transmitted_centre_px=complex(256, 256),
@@ -62,24 +91,6 @@ def test_py4DSTEM_orientation(cif_path: os.PathLike, euler: EulerAngles):
     braggpeaks.calibration.set_Q_pixel_units('A^-1')
     braggpeaks.setcal()
 
-    # Load crystal
-    crystal = py4DSTEM.process.diffraction.Crystal.from_CIF(
-        CIF=cif_path,
-        conventional_standard_structure=True,
-    )
-
-    # Create orientation plan
-    k_max = 2.0
-    angle_step_in_plane = angle_step_zone_axis = 5.
-    crystal.calculate_structure_factors(k_max=k_max)
-    crystal.orientation_plan(
-        zone_axis_range='full',
-        accel_voltage=200e3,
-        precession_angle_degrees=1.,
-        angle_step_zone_axis=angle_step_zone_axis,
-        angle_step_in_plane=angle_step_in_plane,
-        progress_bar=False,
-    )
     # Create and plot orientation map
     orientation_map = crystal.match_orientations(
         braggpeaks,
