@@ -5,9 +5,7 @@ from typing import NamedTuple
 import numpy as np
 from orix.quaternion import Rotation
 from orix.crystal_map import Phase
-from orix.vector.miller import Miller
 from diffsims.generators.simulation_generator import SimulationGenerator
-from diffsims.generators.zap_map_generator import get_rotation_from_z_to_direction
 from diffpy.structure.parsers.p_cif import P_cif
 from ase import Atoms
 from ase.io import read as read_atoms
