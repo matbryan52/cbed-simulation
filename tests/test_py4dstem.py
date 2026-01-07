@@ -98,7 +98,7 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
         orientation=euler,
     )
     sim_peaks = phase.peak_positions(
-        experiment, max_excitation_error=0.05,
+        experiment, max_excitation_error=0.05, xp=np,
     )
     sim_peaks_px = sim_peaks.to_pixels(experiment)
 
@@ -146,7 +146,7 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
     # Simulate peak positions from the inferred orientation
     or_phase = OrientedPhase.from_cif(cif_path=cif_path, orientation=angles)
     or_sim_peaks = or_phase.peak_positions(
-        experiment, max_excitation_error=0.05,
+        experiment, max_excitation_error=0.05, xp=np,
     )
 
     peak_distances = np.abs(or_sim_peaks.offsets[:, np.newaxis] - sim_peaks.offsets[np.newaxis, :])
@@ -154,7 +154,7 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
     or_matches_peaks = peak_matches.any(axis=1)
     sim_matches_peaks = peak_matches.any(axis=0)
 
-    if True:
+    if False:
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots(figsize=(6, 6), dpi=150)
         ax.axhline(alpha=0.2, color="k")
