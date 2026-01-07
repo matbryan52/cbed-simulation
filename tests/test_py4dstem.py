@@ -45,7 +45,7 @@ def si_plan():
 
     # Create orientation plan
     k_max = 2.0
-    angle_step_in_plane = angle_step_zone_axis = 5.
+    angle_step_in_plane = angle_step_zone_axis = 3.
     crystal.calculate_structure_factors(k_max=k_max)
     crystal.orientation_plan(
         zone_axis_range='full',
@@ -56,6 +56,21 @@ def si_plan():
         progress_bar=False,
     )
     yield cif_path, crystal
+
+
+def wrap_bunge_deg(eulers_deg):
+    """Wrap Bunge Euler angles: phi1,phi2 in [0,360), Phi in [0,180]."""
+    phi1, Phi, phi2 = map(float, eulers_deg)
+    phi1 %= 360.0
+    phi2 %= 360.0
+
+    Phi %= 360.0
+    if Phi > 180.0:
+        Phi = 360.0 - Phi
+        phi1 = (phi1 + 180.0) % 360.0
+        phi2 = (phi2 + 180.0) % 360.0
+
+    return np.array([phi1, Phi, phi2], float)
 
 
 @pytest.mark.parametrize(
@@ -126,6 +141,7 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
     angles[0] -= np.pi/2
     angles *= -1
     angles = np.rad2deg(angles)
+    angles = wrap_bunge_deg(angles)
 
     # Simulate peak positions from the inferred orientation
     or_phase = OrientedPhase.from_cif(cif_path=cif_path, orientation=angles)
@@ -138,7 +154,7 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
     or_matches_peaks = peak_matches.any(axis=1)
     sim_matches_peaks = peak_matches.any(axis=0)
 
-    if False:
+    if True:
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots(figsize=(6, 6), dpi=150)
         ax.axhline(alpha=0.2, color="k")
