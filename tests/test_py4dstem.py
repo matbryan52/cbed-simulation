@@ -9,6 +9,7 @@ from emdfile import PointListArray, PointList
 from scipy.spatial.transform import Rotation as RotationSP
 
 from cbed_simulation.crystal_orientation import EulerAngles, OrientedPhase, ExperimentInformation
+from cbed_simulation.frame_builder import FrameParameters
 
 
 ROOT_PATH = pathlib.Path(__file__).parent
@@ -98,7 +99,7 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
         orientation=euler,
     )
     sim_peaks = phase.peak_positions(
-        experiment, max_excitation_error=0.05, xp=np,
+        experiment, max_excitation_error=0.05,
     )
     sim_peaks_px = sim_peaks.to_pixels(experiment)
 
@@ -146,7 +147,7 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
     # Simulate peak positions from the inferred orientation
     or_phase = OrientedPhase.from_cif(cif_path=cif_path, orientation=angles)
     or_sim_peaks = or_phase.peak_positions(
-        experiment, max_excitation_error=0.05, xp=np,
+        experiment, max_excitation_error=0.05,
     )
 
     peak_distances = np.abs(or_sim_peaks.offsets[:, np.newaxis] - sim_peaks.offsets[np.newaxis, :])
@@ -169,6 +170,9 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
         ax.set_title(f"In: {euler}, Out: {tuple(np.round(angles, decimals=1))}")
         fig.tight_layout()
         plt.savefig(ROOT_PATH / f"out_{cif_path.stem}_{euler}.png")
+        fp = FrameParameters(intensity_from_radius=True)
+        frame = or_phase.synthetic(experiment, sim_peaks, frame_params=fp)
+        plt.imsave(ROOT_PATH / "out_frame.png", frame)
 
     match_frac = 0.5
     assert or_matches_peaks.sum() > match_frac * or_matches_peaks.size
