@@ -197,17 +197,30 @@ class IndexedPeaks(NamedTuple):
 
 
 class SimulatedPeaks(IndexedPeaks):
-    def to_pixels(self, experiment: ExperimentInformation) -> IndexedPeaks:
+    def to_pixels(
+        self,
+        experiment: ExperimentInformation,
+        clip: bool = False,
+    ) -> IndexedPeaks:
         offsets = scale_and_rotate(
             self.offsets,
             experiment.pattern_scale_factor,
             experiment.pattern_rotation,
         )
+        contained = np.s_[:]
+        if clip:
+            positions_px = experiment.transmitted_centre_px + offsets
+            contained = (
+                (positions_px.real >= 0)
+                & (positions_px.real < experiment.frame_shape[1] - 1)
+                & (positions_px.imag >= 0)
+                & (positions_px.imag < experiment.frame_shape[0] - 1)
+            )
         return IndexedPeaks(
             experiment.transmitted_centre_px,
-            offsets,
-            self.hkls,
-            self.weights,
+            offsets[contained],
+            self.hkls[contained],
+            self.weights[contained],
         )
 
     def angle_of(self, hkl: tuple[int, int, int], rad: bool = True) -> float:
