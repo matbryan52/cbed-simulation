@@ -50,7 +50,10 @@ def test_001_no_rotation(cif_path):
 
 
 @pytest.mark.parametrize(
-    "cif_path", (ROOT_PATH / "Si.cif",)
+    "cif_path", (
+        ROOT_PATH / "Si.cif",
+        ROOT_PATH / "GaN.cif",
+    )
 )
 @pytest.mark.parametrize(
     "orientation", (
@@ -86,7 +89,11 @@ def test_kinematic_dynamic_equivalent(cif_path, orientation):
 
     # import matplotlib.pyplot as plt
     # from cbed_simulation.utils import overlay_peaks
-    # _ = overlay_peaks(peaks_kinematic_filt, peaks_dynamic)
+    # _, ax = overlay_peaks(
+    #     peaks_dynamic, peaks_kinematic_filt, names=("Dynamic", "Kinematic")
+    # )
+    # ax.set_title(f"{cif_path.stem} - {orientation}")
+    # ax.legend()
     # plt.savefig("out.png")
 
     # matches are very close
