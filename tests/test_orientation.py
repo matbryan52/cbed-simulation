@@ -1,7 +1,7 @@
 import pathlib
 import pytest
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_equal
 
 import py4DSTEM
 from py4DSTEM.process.diffraction.crystal import Crystal
@@ -9,7 +9,9 @@ from py4DSTEM.braggvectors.braggvectors import BraggVectors
 from emdfile import PointListArray, PointList
 from scipy.spatial.transform import Rotation as RotationSP
 
-from cbed_simulation.crystal_orientation import EulerAngles, OrientedPhase, ExperimentInformation
+from cbed_simulation.crystal_orientation import (
+    EulerAngles, OrientedPhase, ExperimentInformation
+)
 from cbed_simulation.frame_builder import FrameParameters
 
 
@@ -47,8 +49,51 @@ def test_001_no_rotation(cif_path):
     assert_allclose(phase.orientation.to_matrix().squeeze(), np.eye(3))
 
 
-def test_kinematic_dynamic_equivalent():
-    raise NotImplementedError
+@pytest.mark.parametrize(
+    "cif_path", (ROOT_PATH / "Si.cif",)
+)
+@pytest.mark.parametrize(
+    "zone_axis", (
+        None,
+        (1, 1, 0),
+        (2, 0, 1),
+    )
+)
+def test_kinematic_dynamic_equivalent(cif_path, zone_axis):
+    phase = OrientedPhase.from_cif(
+        cif_path=cif_path,
+        zone_axis=zone_axis,
+    )
+    experiment = ExperimentInformation(
+        frame_shape=(256, 256),
+        transmitted_centre_px=complex(128, 128),
+        radius_px=12,
+        pattern_scale_factor=119.,  # pixels / Å-1
+    )
+    peaks_kinematic = phase.peak_positions(experiment, bloch=False)
+    peaks_dynamic = phase.peak_positions(experiment, bloch=True)
+
+    # make kinematic ⊆ dynamic
+    peaks_kinematic_filt, _ = peaks_kinematic.match_peaks(peaks_dynamic)
+    distances = (
+        peaks_kinematic_filt.offsets[:, np.newaxis]
+        - peaks_dynamic.offsets[np.newaxis, :]
+    )
+    distances = np.abs(distances)
+    matches = distances.argmin(axis=1)
+    min_distances = distances.min(axis=1)
+
+    # import matplotlib.pyplot as plt
+    # from cbed_simulation.utils import overlay_peaks
+    # _ = overlay_peaks(peaks_kinematic_filt, peaks_dynamic)
+    # plt.savefig("out.png")
+
+    # matches are very close
+    assert_allclose(min_distances, 0., atol=1e-5, rtol=0.)
+    # no double matches
+    assert matches.size == np.unique(matches).size
+    # matches have equivalent hkl values
+    assert_equal(peaks_kinematic_filt.hkls, peaks_dynamic.hkls[matches])
 
 
 @pytest.fixture(scope="module")
