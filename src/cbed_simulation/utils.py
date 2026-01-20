@@ -1,6 +1,6 @@
 import os
 import types
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 import numpy as np
 from numpy.typing import ArrayLike
 import scipy.ndimage as ndimage
@@ -16,6 +16,10 @@ try:
     import cupyx.scipy.ndimage as ndimage_cp
 except ModuleNotFoundError:
     pass
+
+
+if TYPE_CHECKING:
+    from .crystal_orientation import IndexedPeaks
 
 
 def to_complex(array, xp=np) -> complex | np.ndarray[complex]:
@@ -88,3 +92,20 @@ def get_backend(backend: Literal["cupy", "cpu"] | types.ModuleType):
 
 def to_numpy(arr: ArrayLike):
     return sparseconverter.for_backend(arr, sparseconverter.NUMPY)
+
+
+def overlay_peaks(peaks1: "IndexedPeaks", peaks2: "IndexedPeaks"):
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(8, 8))
+    for peaks, color, baseline in zip((peaks1, peaks2), ("r", "g"), ("top", "bottom")):
+        ax.plot(peaks.offsets.real, peaks.offsets.imag, color + 'x')
+        for offset, hkl in zip(peaks.offsets, peaks.hkls):
+            ax.text(
+                offset.real,
+                offset.imag,
+                f"{hkl}",
+                color=color,
+                verticalalignment=baseline,
+                horizontalalignment="center"
+            )
+    return fig, ax
