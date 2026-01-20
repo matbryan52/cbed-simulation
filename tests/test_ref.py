@@ -78,7 +78,7 @@ def test_ref_comparison(cif_path: os.PathLike, ref_path: os.PathLike):
         orientation=euler,
     )
     sim_peaks = phase.peak_positions(
-        experiment, max_excitation_error=0.05, xp=np,
+        experiment, max_excitation_error=0.05,
     )
     sim_hkls = set(tuple(hkl) for hkl in sim_peaks.hkls)
 
