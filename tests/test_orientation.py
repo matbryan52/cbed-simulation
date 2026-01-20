@@ -1,6 +1,7 @@
 import pathlib
 import pytest
 import numpy as np
+from numpy.testing import assert_allclose
 
 import py4DSTEM
 from py4DSTEM.process.diffraction.crystal import Crystal
@@ -33,6 +34,17 @@ def reduce_orientation(crystal: Crystal, matrix: np.ndarray):
             @ matrix[:, a0]
         )
     return family
+
+
+@pytest.mark.parametrize(
+        "cif_path", ("Si.cif",)
+)
+def test_001_no_rotation(cif_path):
+    phase = OrientedPhase.from_cif(
+        cif_path=cif_path,
+        zone_axis=(0, 0, 1),
+    )
+    assert_allclose(phase.orientation.to_matrix().squeeze(), np.eye(3))
 
 
 @pytest.fixture(scope="module")
