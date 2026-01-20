@@ -1,9 +1,10 @@
-from typing import NamedTuple, Sequence, Literal
+from typing import NamedTuple, Sequence
 
 import numpy as np
+import scipy.ndimage as ndimage
 from skimage.draw import ellipse
 
-from .utils import get_backend, to_numpy
+from .utils import to_numpy
 
 
 # interpolant() and generate_perlin_noise_2d() copied from
@@ -283,10 +284,9 @@ def build_frame(
     orientation: float = 0.,
     params: FrameParameters = FrameParameters(),
     intensities: np.ndarray | None = None,
-    backend: Literal["cupy", "cpu"] = "cpu",
+    xp=np,
+    ndimage=ndimage,
 ) -> np.ndarray:
-    xp, ndimage = get_backend(backend)
-    xp: np
 
     p = params
     h, w = frame_shape
