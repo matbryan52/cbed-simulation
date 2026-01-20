@@ -27,7 +27,6 @@ class CBEDSimUDF(UDF):
         frame_params: FrameParameters,
         stretch_abc=(1., 1., 1.),
         scale_bc_ac_ab=(1., 1., 1.),
-        rotate_deg=0.,
         max_excitation_error=None,
         _is_master=True,
     ):
@@ -40,14 +39,12 @@ class CBEDSimUDF(UDF):
             frame_params=frame_params,
             stretch_abc=stretch_abc,
             scale_bc_ac_ab=scale_bc_ac_ab,
-            rotate_deg=rotate_deg,
             max_excitation_error=max_excitation_error,
             # This will be the value set on the worker nodes
             _is_master=False
         )
 
     def get_preferred_input_dtype(self):
-        ''
         return self.USE_NATIVE_DTYPE
 
     @property
@@ -111,7 +108,6 @@ class CBEDSimUDF(UDF):
             p.experiment,
             stretch_abc=p.stretch_abc,
             scale_bc_ac_ab=p.scale_bc_ac_ab,
-            rotate_deg=p.rotate_deg,
             max_excitation_error=p.max_excitation_error,
             bloch=False,
             backend=self.xp,
