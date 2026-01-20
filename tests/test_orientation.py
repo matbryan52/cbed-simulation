@@ -37,7 +37,7 @@ def reduce_orientation(crystal: Crystal, matrix: np.ndarray):
 
 
 @pytest.mark.parametrize(
-        "cif_path", ("Si.cif",)
+        "cif_path", (ROOT_PATH / "Si.cif",)
 )
 def test_001_no_rotation(cif_path):
     phase = OrientedPhase.from_cif(
@@ -45,6 +45,10 @@ def test_001_no_rotation(cif_path):
         zone_axis=(0, 0, 1),
     )
     assert_allclose(phase.orientation.to_matrix().squeeze(), np.eye(3))
+
+
+def test_kinematic_dynamic_equivalent():
+    raise NotImplementedError
 
 
 @pytest.fixture(scope="module")

@@ -55,10 +55,10 @@ def ref_strained_crystal(cif_path, strain_val):
 @pytest.mark.parametrize(
         "cif_path, strain_val",
         (
-            ("Si.cif", (1.01, 1., 1.)),
-            ("Si.cif", (1., 1.03, 1.)),
-            ("Si.cif", (1.03, 1., 1.)),
-            ("Si.cif", (0.98, 1., 1.)),
+            (ROOT_PATH / "Si.cif", (1.01, 1., 1.)),
+            (ROOT_PATH / "Si.cif", (1., 1.03, 1.)),
+            (ROOT_PATH / "Si.cif", (1.03, 1., 1.)),
+            (ROOT_PATH / "Si.cif", (0.98, 1., 1.)),
         )
 )
 def test_gem_ed_2D_strain_equations(cif_path, strain_val):
@@ -127,10 +127,10 @@ def strainval_to_target(strain_val):
 @pytest.mark.parametrize(
         "cif_path, strain_val",
         (
-            ("Si.cif", (1.01, 1., 1.)),
-            ("Si.cif", (1., 1.03, 1.)),
-            ("Si.cif", (1.03, 1., 1.)),
-            ("Si.cif", (0.98, 1., 1.)),
+            (ROOT_PATH / "Si.cif", (1.01, 1., 1.)),
+            (ROOT_PATH / "Si.cif", (1., 1.03, 1.)),
+            (ROOT_PATH / "Si.cif", (1.03, 1., 1.)),
+            (ROOT_PATH / "Si.cif", (0.98, 1., 1.)),
         )
 )
 def test_py4DSTEM_2D_strain_equations(cif_path, strain_val):
@@ -188,10 +188,10 @@ def test_py4DSTEM_2D_strain_equations(cif_path, strain_val):
 @pytest.mark.parametrize(
         "cif_path, strain_val",
         (
-            ("Si.cif", (1., 1.03, 1.)),
-            ("Si.cif", (1.01, 1., 1.)),
-            ("Si.cif", (1.03, 1., 1.)),
-            ("Si.cif", (0.98, 1., 1.)),
+            (ROOT_PATH / "Si.cif", (1., 1.03, 1.)),
+            (ROOT_PATH / "Si.cif", (1.01, 1., 1.)),
+            (ROOT_PATH / "Si.cif", (1.03, 1., 1.)),
+            (ROOT_PATH / "Si.cif", (0.98, 1., 1.)),
         )
 )
 def test_py4DSTEM_template_match(cif_path, strain_val):
@@ -246,9 +246,9 @@ def test_py4DSTEM_template_match(cif_path, strain_val):
 @pytest.mark.parametrize(
         "cif_path, strain_val",
         (
-            ("Si.cif", (1., 1.03, 1.)),
-            ("Si.cif", (1.03, 1., 1.)),
-            ("Si.cif", (0.98, 1., 1.)),
+            (ROOT_PATH / "Si.cif", (1., 1.03, 1.)),
+            (ROOT_PATH / "Si.cif", (1.03, 1., 1.)),
+            (ROOT_PATH / "Si.cif", (0.98, 1., 1.)),
         )
 )
 def test_py4DSTEM_2D_strain_framegen(cif_path, strain_val):
