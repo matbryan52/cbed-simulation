@@ -94,11 +94,16 @@ def to_numpy(arr: ArrayLike):
     return sparseconverter.for_backend(arr, sparseconverter.NUMPY)
 
 
-def overlay_peaks(peaks1: "IndexedPeaks", peaks2: "IndexedPeaks"):
+def overlay_peaks(peaks1: "IndexedPeaks", peaks2: "IndexedPeaks", names=(1, 2)):
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(8, 8))
-    for peaks, color, baseline in zip((peaks1, peaks2), ("r", "g"), ("top", "bottom")):
-        ax.plot(peaks.offsets.real, peaks.offsets.imag, color + 'x')
+    for peaks, color, baseline, name in zip(
+        (peaks1, peaks2),
+        ("k", "r"),
+        ("top", "bottom"),
+        names,
+    ):
+        ax.plot(peaks.offsets.real, peaks.offsets.imag, color + 'x', label=f"{name}")
         for offset, hkl in zip(peaks.offsets, peaks.hkls):
             ax.text(
                 offset.real,
