@@ -404,7 +404,6 @@ class OrientedPhase(NamedTuple):
         max_extent: float | None = None,
         stretch_abc: tuple[float, float, float] = (1., 1., 1.),
         scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
-        rotate_deg: float = 0.,
         bloch: bool = True,
         backend: Literal["cupy", "cpu"] | types.ModuleType = "cpu",
     ):
@@ -430,8 +429,6 @@ class OrientedPhase(NamedTuple):
             **kwargs,
             backend=backend,
         )
-        tmp = xp.exp(1j * xp.deg2rad(rotate_deg))
-        peaks.offsets[:] *= tmp
         return peaks.to_numpy()
 
     def synthetic(
