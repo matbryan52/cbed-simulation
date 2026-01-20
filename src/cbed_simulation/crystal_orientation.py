@@ -259,11 +259,6 @@ class OrientedPhase(NamedTuple):
         orientation: tuple[float, float, float] | Rotation | None = None,
         zone_axis: tuple[int, int, int] | None = None,
     ):
-        assert not ((
-            orientation is not None)
-            and (zone_axis is not None)
-        ), "Can only supply one of orientation or hkl"
-
         cif_path = pathlib.Path(cif_path)
         with cif_path.open('r') as fp:
             cif_str = fp.read()
@@ -275,6 +270,27 @@ class OrientedPhase(NamedTuple):
             space_group=spacegroup,
             structure=copy.deepcopy(structure),
         )
+        if orientation is None and zone_axis is None:
+            orientation = (0., 0., 0.)  # null Euler angles
+        orientation = cls._get_orientation(
+            phase, orientation, zone_axis
+        )
+        return cls(
+            phase,
+            read_atoms(cif_path),
+            orientation,
+        )
+
+    @staticmethod
+    def _get_orientation(
+        phase: Phase,
+        orientation: tuple[float, float, float] | Rotation | None = None,
+        zone_axis: tuple[int, int, int] | None = None,
+    ):
+        assert not (
+            (orientation is not None)
+            and (zone_axis is not None)
+        ), "Can only supply one of orientation or zone_axis"
         if zone_axis is not None:
             orientation = orientation_for_hkl(
                 phase, zone_axis,
@@ -285,26 +301,29 @@ class OrientedPhase(NamedTuple):
                 direction="crystal2lab",
                 degrees=True,
             )
-        elif orientation is None:
-            orientation = Rotation.from_euler(
-                (0., 0., 0.),
-                direction="crystal2lab",
-                degrees=True,
-            )
+        elif isinstance(orientation, Rotation):
+            pass
+        else:
+            raise TypeError("Unrecognized orientation type")
         assert isinstance(orientation, Rotation)
-        return cls(
-            phase,
-            read_atoms(cif_path),
-            orientation,
-        )
+        return orientation
 
-    def with_rot(self, orientation: Rotation | np.ndarray):
-        if not isinstance(orientation, Rotation):
-            orientation = Rotation.from_euler(orientation)
+    def with_rot(
+        self,
+        orientation: tuple[float, float, float] | Rotation | None = None,
+        zone_axis: tuple[int, int, int] | None = None,
+    ):
+        assert (
+            (orientation is not None) or (zone_axis is not None)
+        ), "Must supply one of orientation or zone_axis"
         return type(self)(
             self.phase,
             self.atoms,
-            orientation,
+            self._get_orientation(
+                self.phase,
+                orientation,
+                zone_axis,
+            ),
         )
 
     def _kinematical_sim(
