@@ -2,10 +2,9 @@ import numpy as np
 from libertem.udf.base import UDF
 from libertem.common.math import prod
 from libertem.common.buffers import reshaped_view
-from orix.quaternion import Rotation
-import sparseconverter
 
 from .crystal_orientation import ExperimentInformation, FrameParameters, OrientedPhase
+from .utils import to_numpy
 
 
 class CBEDSimUDF(UDF):
@@ -64,7 +63,6 @@ class CBEDSimUDF(UDF):
         return int
 
     def preprocess(self):
-        ''
         if tuple(self.meta.dataset_shape.sig) != (3, ):
             raise ValueError(
                 'This UDF expects a sig shape of (3, ) that corresponds to Euler angles, '
@@ -85,13 +83,11 @@ class CBEDSimUDF(UDF):
             )
 
     def get_result_buffers(self):
-        ''
         return {
             'peak_positions': self.buffer(kind='nav', dtype=object)
         }
 
     def get_task_data(self):
-        ''
         m = np.lib.format.open_memmap(
                 self.params.filename,
                 mode='r+',
@@ -106,12 +102,11 @@ class CBEDSimUDF(UDF):
         return (self.BACKEND_CUPY, self.BACKEND_NUMPY)
 
     def process_frame(self, frame):
-        ''
-        rot = Rotation.from_euler(
-            sparseconverter.for_backend(frame, sparseconverter.NUMPY)
-        )
         p = self.params
-        phase: OrientedPhase = p.phase.with_rot(rot)
+        phase: OrientedPhase = p.phase
+        phase = phase.with_rot(
+            to_numpy(frame),
+        )
         sim_peaks = phase.peak_positions(
             p.experiment,
             stretch_abc=p.stretch_abc,
