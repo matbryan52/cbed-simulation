@@ -407,8 +407,6 @@ class OrientedPhase(NamedTuple):
         bloch: bool = True,
         backend: Literal["cupy", "cpu"] | types.ModuleType = "cpu",
     ):
-        xp, _ = get_backend(backend)
-
         if max_extent is None:
             max_extent = experiment.max_extent
         fn = self._kinematical_sim
@@ -439,12 +437,13 @@ class OrientedPhase(NamedTuple):
         frame_params: FrameParameters = FrameParameters(),
         backend: Literal["cupy", "cpu"] | types.ModuleType = "cpu",
     ):
+        xp, ndimage = get_backend(backend)
+
         offsets = sim_peaks.peaks
         intensities = sim_peaks.weights
         pixel_peaks = sim_peaks.to_pixels(experiment)
         offsets = pixel_peaks.offsets
         warped = apply_distortion(offsets, distortions)
-        xp, ndimage = get_backend(backend)
         frame = build_frame(
             experiment.frame_shape,
             experiment.transmitted_centre_px,
