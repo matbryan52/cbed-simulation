@@ -342,7 +342,7 @@ class OrientedPhase(NamedTuple):
         )
         sim = gen.calculate_diffraction2d(
             phase=self.phase,
-            rotation=self.orientation,
+            rotation=self.orientation.inv(),
             reciprocal_radius=max_extent,
             max_excitation_error=max_excitation_error,
             with_direct_beam=True,
@@ -362,7 +362,7 @@ class OrientedPhase(NamedTuple):
         ).astype(np.int16)
         return SimulatedPeaks(
             complex(0., 0.),
-            to_complex(spots[:-1, ::-1]).ravel(),
+            to_complex(spots[:-1, ::-1]).ravel().conjugate(),
             xp.array(millers[:-1, ...]),
             xp.array(intensity[:-1, ...]),
         )
