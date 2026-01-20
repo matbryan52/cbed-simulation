@@ -1,7 +1,7 @@
 import os
 import copy
 import pathlib
-from typing import NamedTuple
+from typing import NamedTuple, Literal
 
 import sparseconverter as spc
 import numpy as np
@@ -12,10 +12,10 @@ from diffpy.structure.parsers.p_cif import P_cif
 from ase import Atoms
 from ase.io import read as read_atoms
 
-from .utils import to_complex, to_array
+from .utils import to_complex, to_array, get_backend, to_numpy
 from .distortions import DistortionConfig, apply_distortion
 from .crystal_bloch import scale_and_rotate, get_bloch_pattern, unpack_pattern
-from .frame_builder import build_frame, FrameParameters, xp, ndimage
+from .frame_builder import build_frame, FrameParameters
 
 
 class EulerAngles(NamedTuple):
@@ -169,6 +169,14 @@ class IndexedPeaks(NamedTuple):
             interactive=interactive,
         )
 
+    def to_numpy(self):
+        return type(self)(
+            complex(self.pos_000),
+            to_numpy(self.offsets),
+            to_numpy(self.hkls),
+            to_numpy(self.weights),
+        )
+
 
 class SimulatedPeaks(IndexedPeaks):
     def to_pixels(self, experiment: ExperimentInformation) -> IndexedPeaks:
@@ -257,8 +265,9 @@ class OrientedPhase(NamedTuple):
         max_extent: float | None = None,
         stretch_abc: tuple[float, float, float] = (1., 1., 1.),
         scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
-        xp=xp,
+        backend: Literal["cupy", "cpu"] = "cpu",
     ):
+        xp, _ = get_backend(backend)
         gen = SimulationGenerator(
             accelerating_voltage=experiment.voltage_kv,
             precession_angle=experiment.precession_angle,
@@ -285,7 +294,7 @@ class OrientedPhase(NamedTuple):
         ).astype(np.int16)
         return SimulatedPeaks(
             complex(0., 0.),
-            to_complex(spots[:-1, ::-1], xp=xp).ravel(),
+            to_complex(spots[:-1, ::-1]).ravel(),
             xp.array(millers[:-1, ...]),
             xp.array(intensity[:-1, ...]),
         )
@@ -297,8 +306,9 @@ class OrientedPhase(NamedTuple):
         max_extent: float | None = None,
         stretch_abc: tuple[float, float, float] = (1., 1., 1.),
         scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
-        xp=xp,
+        backend: Literal["cupy", "cpu"] = "cpu",
     ):
+        xp, _ = get_backend(backend)
         pattern = get_bloch_pattern(
             self.atoms,
             self.orientation,
@@ -328,8 +338,10 @@ class OrientedPhase(NamedTuple):
         scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
         rotate_deg: float = 0.,
         bloch: bool = True,
-        xp=xp,
+        backend: Literal["cupy", "cpu"] = "cpu",
     ):
+        xp, _ = get_backend(backend)
+
         if max_extent is None:
             max_extent = experiment.max_extent
         fn = self._kinematical_sim
@@ -348,11 +360,11 @@ class OrientedPhase(NamedTuple):
         peaks = fn(
             experiment,
             **kwargs,
-            xp=xp,
+            backend=backend,
         )
         tmp = xp.exp(1j * xp.deg2rad(rotate_deg))
         peaks.offsets[:] *= tmp
-        return peaks
+        return peaks.to_numpy()
 
     def synthetic(
         self,
@@ -360,8 +372,7 @@ class OrientedPhase(NamedTuple):
         sim_peaks: SimulatedPeaks,
         distortions: DistortionConfig = DistortionConfig(),
         frame_params: FrameParameters = FrameParameters(),
-        xp=xp,
-        ndimage=ndimage,
+        backend: Literal["cupy", "cpu"] = "cpu",
     ):
         offsets = sim_peaks.peaks
         intensities = sim_peaks.weights
@@ -377,7 +388,6 @@ class OrientedPhase(NamedTuple):
             orientation=experiment.ellipse_orientation,
             intensities=intensities,
             params=frame_params,
-            xp=xp,
-            ndimage=ndimage,
+            backend=backend,
         )
         return frame

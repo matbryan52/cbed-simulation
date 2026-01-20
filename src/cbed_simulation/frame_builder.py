@@ -1,18 +1,9 @@
-from typing import NamedTuple, Sequence
+from typing import NamedTuple, Sequence, Literal
 
 import numpy as np
-from skimage.transform import resize
 from skimage.draw import ellipse
 
-import sparseconverter
-
-
-try:
-    import cupy as xp
-    import cupyx.scipy.ndimage as ndimage
-except ModuleNotFoundError:
-    import numpy as xp
-    import scipy.ndimage as ndimage
+from .utils import get_backend, to_numpy
 
 
 # interpolant() and generate_perlin_noise_2d() copied from
@@ -25,7 +16,7 @@ def interpolant(t):
 
 def generate_perlin_noise_2d(
         shape, res, tileable=(False, False), interpolant=interpolant,
-        xp=xp
+        xp=np
 ):
     """Generate a 2D numpy array of perlin noise.
 
@@ -168,7 +159,7 @@ def to_slices(target_tup, offsets):
     return (target_slice, source_slice)
 
 
-def fourier_shift(image_fft: np.ndarray, shift: np.ndarray, out=None, xp=xp):
+def fourier_shift(image_fft: np.ndarray, shift: np.ndarray, out=None, xp=np):
     """
     Implements Fourier shifting like scipy.ndimage
     but with numpy broadcasting to apply multiple
@@ -209,7 +200,7 @@ def fourier_shift(image_fft: np.ndarray, shift: np.ndarray, out=None, xp=xp):
     return out
 
 
-def gen_noise(shape, scale=None, xp=xp):
+def gen_noise(shape, scale=None, xp=np):
     if scale is None:
         scale = min(shape)
     true_shape = tuple(s + (scale - (s % scale)) for s in shape)
@@ -300,9 +291,11 @@ def build_frame(
     orientation: float = 0.,
     params: FrameParameters = FrameParameters(),
     intensities: np.ndarray | None = None,
-    xp=xp,
-    ndimage=ndimage,
+    backend: Literal["cupy", "cpu"] = "cpu",
 ) -> np.ndarray:
+    xp, ndimage = get_backend(backend)
+    xp: np
+
     p = params
     h, w = frame_shape
     buffer = r = int(np.round(r))
@@ -397,13 +390,13 @@ def build_frame(
     frame = xp.zeros(shape=subpixel_frame.shape[:1] + frame.shape, dtype=subpixel_frame.dtype)
 
     # Do slice computations on CPU
-    pixel_shifts = sparseconverter.for_backend(pixel_shifts, sparseconverter.NUMPY)
+    pixel_shifts = to_numpy(pixel_shifts)
     for i, pixel_shift in enumerate(pixel_shifts):
         target_tup, offsets = get_shifted(
             arr_shape=np.array(subpixel_frame.shape[1:]),
             tile_origin=np.array((0, 0)),
             tile_shape=np.array(frame.shape[1:]),
-            # No idea why negative ut it is what it is...
+            # No idea why negative but it is what it is...
             shift=(-pixel_shift).astype(int),
         )
         target, source = to_slices(target_tup, offsets)
