@@ -24,7 +24,7 @@ def save_frames(frame_ref, frame_strained, savedir=pathlib.Path(".")):
     plt.imsave(savedir / "out_frame_strained.png", frame_strained)
     im1 = iio.v3.imread(savedir / "out_frame.png")
     im2 = iio.v3.imread(savedir / "out_frame_strained.png")
-    iio.v3.imwrite(savedir / "out.gif", (im1, im2), loop=0, fps=2)
+    iio.v3.imwrite(savedir / "out.gif", (im1, im2), loop=0, duration=500)
     # import tifffile
     # tifffile.imwrite(
     #     savedir / "out_frame.tiff",
