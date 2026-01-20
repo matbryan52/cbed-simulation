@@ -17,6 +17,24 @@ from .distortions import DistortionConfig, apply_distortion
 from .crystal_bloch import scale_and_rotate, get_bloch_pattern, unpack_pattern
 from .frame_builder import build_frame, FrameParameters
 
+from orix.vector.miller import Miller
+from diffsims.generators.zap_map_generator import get_rotation_from_z_to_direction
+
+
+def orientation_for_hkl(phase: Phase, hkl: tuple[int, int, int]):
+    # raise NotImplementedError("Verify this against some cases from Vesta or JEMS ?")
+    miller = Miller(hkl=hkl, phase=phase)
+    orientation = get_rotation_from_z_to_direction(
+        phase.structure,
+        miller.uvw.squeeze(),
+    )
+    orientation = Rotation.from_euler(
+        orientation,
+        direction="crystal2lab",
+        degrees=True,
+    )
+    return orientation
+
 
 class EulerAngles(NamedTuple):
     phi1: float
