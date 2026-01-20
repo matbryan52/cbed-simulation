@@ -262,14 +262,16 @@ def g1g2_pattern(frame_shape, g1, g2):
 
 class FrameParameters(NamedTuple):
     disk_brightness: float = 1.
-    disk_blur_sigma: float = 2.
+    # the default blur value effectively anti-aliases
+    # the disk without changing the radius more than 1 px
+    disk_blur_sigma: float = 0.5
     intensity_from_radius: bool = False
     intensity_falloff_power: float = 4.
     textured: bool = True
     frame_brightness: float = 40.
     inelastic_scatter_sigma: float = 4.
     additive_noise_scale: float = 0.1
-    multiplicative_noise_scale: float = 0
+    multiplicative_noise_scale: float = 0.
 
 
 def build_frame(
