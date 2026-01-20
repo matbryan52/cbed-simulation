@@ -1,33 +1,30 @@
+import os
 import numpy as np
+import libertem.api as lt
 from libertem.udf.base import UDF
 from libertem.common.math import prod
 from libertem.common.buffers import reshaped_view
 
 from .crystal_orientation import ExperimentInformation, FrameParameters, OrientedPhase
-from .utils import to_numpy
 
 
 class CBEDSimUDF(UDF):
     '''
-    Record input data as NumPy .npy file
+    Build CBED frames into a .npy file
 
-    Parameters
-    ----------
-
-    filename : str or path-like
-        Filename where to save. The file will be overwritten if it exists.
-    _is_master : bool
-        Internal flag, keep at default value.
+    Accepts AUX data for orientation, stretch and scale
     '''
     def __init__(
         self,
-        filename,
+        filename: os.PathLike,
         experiment: ExperimentInformation,
         phase: OrientedPhase,
         frame_params: FrameParameters,
-        stretch_abc=(1., 1., 1.),
-        scale_bc_ac_ab=(1., 1., 1.),
+        orientation: tuple[float, float, float] | None = None,
+        stretch_abc: tuple[float, float, float] = (1., 1., 1.),
+        scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
         max_excitation_error=None,
+        bloch: bool = False,
         _is_master=True,
     ):
         # We keep a local copy that is not transferred to workers
@@ -37,9 +34,11 @@ class CBEDSimUDF(UDF):
             experiment=experiment,
             phase=phase,
             frame_params=frame_params,
+            orientation=orientation,
             stretch_abc=stretch_abc,
             scale_bc_ac_ab=scale_bc_ac_ab,
             max_excitation_error=max_excitation_error,
+            bloch=bloch,
             # This will be the value set on the worker nodes
             _is_master=False
         )
@@ -60,16 +59,6 @@ class CBEDSimUDF(UDF):
         return int
 
     def preprocess(self):
-        if tuple(self.meta.dataset_shape.sig) != (3, ):
-            raise ValueError(
-                'This UDF expects a sig shape of (3, ) that corresponds to Euler angles, '
-                f'received {self.meta.dataset_shape.sig} instead.'
-            )
-        if self.meta.input_dtype.kind != 'f':
-            raise ValueError(
-                'This UDF expects a floating point input dtype, '
-                f'received {self.meta.input_dtype} instead.'
-            )
         # create the file once in the preprocess method on the master node
         if self._is_master:
             np.lib.format.open_memmap(
@@ -101,15 +90,16 @@ class CBEDSimUDF(UDF):
     def process_frame(self, frame):
         p = self.params
         phase: OrientedPhase = p.phase
-        phase = phase.with_rot(
-            to_numpy(frame),
-        )
+        if p.orientation is not None:
+            phase = phase.with_rot(
+                p.orientation,
+            )
         sim_peaks = phase.peak_positions(
             p.experiment,
-            stretch_abc=p.stretch_abc,
-            scale_bc_ac_ab=p.scale_bc_ac_ab,
+            stretch_abc=tuple(p.stretch_abc),
+            scale_bc_ac_ab=tuple(p.scale_bc_ac_ab),
             max_excitation_error=p.max_excitation_error,
-            bloch=False,
+            bloch=p.bloch,
             backend=self.xp,
         )
         sim_frame = phase.synthetic(
@@ -129,3 +119,52 @@ class CBEDSimUDF(UDF):
             p.experiment,
             clip=True,
         )
+
+
+def build_udf_ds(
+    out_path: os.PathLike,
+    nav_shape: tuple[int, int],
+    ctx: lt.Context,
+    phase: OrientedPhase,
+    experiment: ExperimentInformation,
+    frame_parameters: FrameParameters,
+    orientation: tuple[float, float, float] | np.ndarray | None = None,
+    stretch_abc: tuple[float, float, float] | np.ndarray = (1., 1., 1.),
+    scale_bc_ac_ab: tuple[float, float, float] | np.ndarray = (1., 1., 1.),
+    max_excitation_error=None,
+    bloch: bool = False,
+):
+    num_frames = np.prod(nav_shape, dtype=int)
+    ds = ctx.load("memory", data=np.arange(num_frames).reshape(*nav_shape, 1, 1))
+    # NOTE initial orientation of phase will be ignored
+    stretch_abc = np.asarray(stretch_abc)
+    if stretch_abc.size != 3:
+        assert stretch_abc.shape == nav_shape + (3,), "stretch_abc incompatible with aux_data"
+        stretch_abc = CBEDSimUDF.aux_data(
+            stretch_abc.ravel(), kind="nav", extra_shape=(3,)
+        )
+    scale_bc_ac_ab = np.asarray(scale_bc_ac_ab)
+    if scale_bc_ac_ab.size != 3:
+        assert scale_bc_ac_ab.shape == nav_shape + (3,), "scale_bc_ac_ab incompatible with aux_data"
+        scale_bc_ac_ab = CBEDSimUDF.aux_data(
+            scale_bc_ac_ab.ravel(), kind="nav", extra_shape=(3,)
+        )
+    if orientation is not None:
+        orientation = np.asarray(orientation)
+        if orientation.size != 3:
+            assert orientation.shape == nav_shape + (3,), "orientation incompatible with aux_data"
+            orientation = CBEDSimUDF.aux_data(
+                orientation.ravel(), kind="nav", extra_shape=(3,)
+            )
+    udf = CBEDSimUDF(
+        out_path,
+        experiment,
+        phase,
+        frame_parameters,
+        stretch_abc=stretch_abc,
+        scale_bc_ac_ab=scale_bc_ac_ab,
+        orientation=orientation,
+        max_excitation_error=max_excitation_error,
+        bloch=bloch,
+    )
+    return udf, ds
