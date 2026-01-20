@@ -53,16 +53,17 @@ def test_001_no_rotation(cif_path):
     "cif_path", (ROOT_PATH / "Si.cif",)
 )
 @pytest.mark.parametrize(
-    "zone_axis", (
-        None,
-        (1, 1, 0),
-        (2, 0, 1),
+    "orientation", (
+        dict(zone_axis=None),
+        dict(zone_axis=(1, 1, 0)),
+        dict(zone_axis=(2, 0, 1)),
+        dict(orientation=(30, 10, 70)),
     )
 )
-def test_kinematic_dynamic_equivalent(cif_path, zone_axis):
+def test_kinematic_dynamic_equivalent(cif_path, orientation):
     phase = OrientedPhase.from_cif(
         cif_path=cif_path,
-        zone_axis=zone_axis,
+        **orientation,
     )
     experiment = ExperimentInformation(
         frame_shape=(256, 256),
