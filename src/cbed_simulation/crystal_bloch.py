@@ -13,8 +13,6 @@ from ase.io import read as read_atoms
 from abtem.bloch import BlochWaves, StructureFactor
 from abtem.measurements import IndexedDiffractionPatterns
 
-from .frame_builder import xp
-
 
 def rotation_for_hkl(cif_path: os.PathLike, hkl: tuple[int, int, int]):
     with open(cif_path, 'r') as fp:
@@ -48,7 +46,7 @@ def get_bloch_pattern(
     thickness_nm: float = 200,
     max_extent: float = 2.,
     max_excitation_error: float = 0.1,
-    xp=xp,
+    xp=np,
 ):
     if xp.__name__ == 'cupy':
         device = 'gpu'
@@ -92,7 +90,7 @@ def get_bloch_pattern(
 def unpack_pattern(
     patterns: IndexedDiffractionPatterns,
     intensity_threshold: float = 1e-10,
-    xp=xp
+    xp=np,
 ):
     bloch_positions = tuple(
         complex(*position[:2]) for position, intensity
