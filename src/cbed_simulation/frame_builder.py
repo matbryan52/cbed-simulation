@@ -291,6 +291,8 @@ def build_frame(
     buffer = r = int(np.round(r))
     if centre is None:
         centre = complex(*(np.asarray(frame_shape) // 2))
+    assert centre.real == int(centre.real), "centre position must be integer"
+    assert centre.imag == int(centre.imag), "centre position must be integer"
     expanded_centre = centre + complex(buffer, buffer)
 
     frame = np.zeros(
@@ -343,11 +345,9 @@ def build_frame(
     radius *= -1
 
     if intensities is None or p.intensity_from_radius:
-        multiplier = radius.copy()
-        multiplier **= p.intensity_falloff_power
-        intensities = np.ones(offsets.shape)
+        radius_adjusted = radius.copy()
+        radius_adjusted **= p.intensity_falloff_power
     else:
-        multiplier = np.ones_like(frame)
         intensities = intensities.copy()
         intensities /= intensities.max()
 
@@ -362,6 +362,8 @@ def build_frame(
 
         this_shift = real_pos - base_centre
         valid_shifts.append((this_shift.imag, this_shift.real))
+        if intensities is None or p.intensity_from_radius:
+            intensity = radius_adjusted[int(round(real_pos.imag)), int(round(real_pos.real))]
         valid_intensities.append(intensity)
 
     valid_shifts = xp.asarray(valid_shifts)
@@ -393,7 +395,6 @@ def build_frame(
 
     if p.textured:
         frame *= xp.asarray(texture)[xp.newaxis, ...]
-    frame *= xp.asarray(multiplier)[xp.newaxis, ...]
     frame = xp.max(frame, axis=0)
     frame *= p.frame_brightness
 
