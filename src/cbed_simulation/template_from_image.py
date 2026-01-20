@@ -9,7 +9,8 @@ def r_map(im_shape, cyx):
     h, w = im_shape
     cy, cx = cyx
     xx, yy = np.meshgrid(
-        np.arange(h) - cy, np.arange(w) - cx
+        np.arange(h) - cy, np.arange(w) - cx,
+        indexing="ij",
     )
     return np.sqrt(xx ** 2 + yy ** 2)
 
@@ -56,7 +57,6 @@ def template_from_vacuum(
     edge_rescale_factor: float = 1.025,
     clip_max_frac: float = 0.5,
     sigmoid_taper_frac: float = 1.5,
-    shifted: Literal["fourier", "bilinear"] | None = None,
 ):
     # equivalent of get_vacuum_probe / add_vacuum_region
     vac_frame = frame * sigmoid_2d(
@@ -92,3 +92,12 @@ def template_from_vacuum(
     left, right = crop_or_insert(template.shape, shifted_edge_map.shape)
     template[left] -= shifted_edge_map[right]
     return template
+
+
+def shift_probe(template, cyx: tuple[float, float], shifted: Literal["fourier", "bilinear"]):
+    from py4DSTEM.process.utils import get_shifted_ar
+    assert shifted.lower() in ("fourier", "bilinear")
+    cy, cx = cyx
+    return get_shifted_ar(
+        template, -cy, -cx, bilinear=shifted.lower() == "bilinear",
+    )
