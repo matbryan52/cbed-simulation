@@ -1,6 +1,7 @@
 import os
 import copy
 import pathlib
+import types
 from typing import NamedTuple, Literal
 
 import sparseconverter as spc
@@ -313,7 +314,7 @@ class OrientedPhase(NamedTuple):
         max_extent: float | None = None,
         stretch_abc: tuple[float, float, float] = (1., 1., 1.),
         scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
-        backend: Literal["cupy", "cpu"] = "cpu",
+        backend: Literal["cupy", "cpu"] | types.ModuleType = "cpu",
     ):
         xp, _ = get_backend(backend)
         gen = SimulationGenerator(
@@ -354,7 +355,7 @@ class OrientedPhase(NamedTuple):
         max_extent: float | None = None,
         stretch_abc: tuple[float, float, float] = (1., 1., 1.),
         scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
-        backend: Literal["cupy", "cpu"] = "cpu",
+        backend: Literal["cupy", "cpu"] | types.ModuleType = "cpu",
     ):
         xp, _ = get_backend(backend)
         pattern = get_bloch_pattern(
@@ -386,7 +387,7 @@ class OrientedPhase(NamedTuple):
         scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
         rotate_deg: float = 0.,
         bloch: bool = True,
-        backend: Literal["cupy", "cpu"] = "cpu",
+        backend: Literal["cupy", "cpu"] | types.ModuleType = "cpu",
     ):
         xp, _ = get_backend(backend)
 
@@ -420,13 +421,14 @@ class OrientedPhase(NamedTuple):
         sim_peaks: SimulatedPeaks,
         distortions: DistortionConfig = DistortionConfig(),
         frame_params: FrameParameters = FrameParameters(),
-        backend: Literal["cupy", "cpu"] = "cpu",
+        backend: Literal["cupy", "cpu"] | types.ModuleType = "cpu",
     ):
         offsets = sim_peaks.peaks
         intensities = sim_peaks.weights
         pixel_peaks = sim_peaks.to_pixels(experiment)
         offsets = pixel_peaks.offsets
         warped = apply_distortion(offsets, distortions)
+        xp, ndimage = get_backend(backend)
         frame = build_frame(
             experiment.frame_shape,
             experiment.transmitted_centre_px,
@@ -436,6 +438,7 @@ class OrientedPhase(NamedTuple):
             orientation=experiment.ellipse_orientation,
             intensities=intensities,
             params=frame_params,
-            backend=backend,
+            xp=xp,
+            ndimage=ndimage,
         )
         return frame

@@ -1,4 +1,5 @@
 import os
+import types
 from typing import Literal
 import numpy as np
 from numpy.typing import ArrayLike
@@ -60,17 +61,29 @@ def load_ang(filepath: os.PathLike, do_flip_y: bool = True):
     return xtal_map
 
 
-def get_backend(backend: Literal["cupy", "cpu"]):
-    if backend == "cpu":
-        return np, ndimage
+def get_ndimage(backend: types.ModuleType):
+    if backend is np:
+        return ndimage
+    elif backend is cp:
+        if ndimage_cp is None:
+            raise ModuleNotFoundError("Missing functioning cupyx for backend")
+        return ndimage_cp
+    else:
+        raise ValueError("Unrecognized backend for ndimage")
+
+
+def get_backend(backend: Literal["cupy", "cpu"] | types.ModuleType):
+    if isinstance(backend, types.ModuleType):
+        pass
+    elif backend == "cpu":
+        backend = np
     elif backend == "cupy":
         if cp is None:
             raise ModuleNotFoundError("Missing functioning cupy for backend")
-        if ndimage_cp is None:
-            raise ModuleNotFoundError("Missing functioning cupyx for backend")
-        return cp, ndimage_cp
+        backend = cp
     else:
         raise ValueError(f"Unrecognized backend {backend}")
+    return backend, get_ndimage(backend)
 
 
 def to_numpy(arr: ArrayLike):
