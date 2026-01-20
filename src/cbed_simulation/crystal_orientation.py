@@ -242,8 +242,14 @@ class OrientedPhase(NamedTuple):
     def from_cif(
         cls,
         cif_path: os.PathLike,
-        orientation: tuple[int, int, int] | Rotation,
+        orientation: tuple[float, float, float] | Rotation | None = None,
+        zone_axis: tuple[int, int, int] | None = None,
     ):
+        assert not ((
+            orientation is not None)
+            and (zone_axis is not None)
+        ), "Can only supply one of orientation or hkl"
+
         cif_path = pathlib.Path(cif_path)
         with cif_path.open('r') as fp:
             cif_str = fp.read()
@@ -255,12 +261,23 @@ class OrientedPhase(NamedTuple):
             space_group=spacegroup,
             structure=copy.deepcopy(structure),
         )
-        if not isinstance(orientation, Rotation):
+        if zone_axis is not None:
+            orientation = orientation_for_hkl(
+                phase, zone_axis,
+            )
+        elif isinstance(orientation, (list, tuple, np.ndarray)):
             orientation = Rotation.from_euler(
                 orientation,
                 direction="crystal2lab",
                 degrees=True,
             )
+        elif orientation is None:
+            orientation = Rotation.from_euler(
+                (0., 0., 0.),
+                direction="crystal2lab",
+                degrees=True,
+            )
+        assert isinstance(orientation, Rotation)
         return cls(
             phase,
             read_atoms(cif_path),
