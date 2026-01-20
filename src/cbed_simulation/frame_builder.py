@@ -236,28 +236,18 @@ def apply_strain(e_xx, e_xy, e_yy, e_rot, g1, g2):
     return complex(*Gstrained_p[:, 0]), complex(*Gstrained_p[:, 1])
 
 
-def aa_ellipse(frame_shape, cy, cx, major, scale, minor=None, orientation=0., upsample=4):
-    assert isinstance(upsample, int)
+def draw_ellipse(frame_shape, cy, cx, major, scale, minor=None, orientation=0.):
     h, w = frame_shape
-    frame = np.zeros((int(h * upsample), int(w * upsample)), dtype=xp.float32)
-    cy = cy * upsample
-    cx = cx * upsample
+    frame = np.zeros((int(h), int(w)), dtype=np.float32)
     if minor is None:
         minor = major
-    major = int(xp.round(major * upsample))
-    minor = int(xp.round(minor * upsample))
     minor, major = sorted((minor, major))
     rr, cc = ellipse(
-        cy, cx, minor, major, shape=frame.shape, rotation=np.deg2rad(orientation)
+        cy, cx, minor, major,
+        shape=frame.shape, rotation=np.deg2rad(orientation)
     )
     frame[rr, cc] = scale
-    return resize(
-        frame,
-        frame_shape,
-        anti_aliasing=True,
-        preserve_range=True,
-        clip=False,
-    )
+    return frame
 
 
 def g1g2_pattern(frame_shape, g1, g2):
@@ -325,12 +315,11 @@ def build_frame(
     # Make base frame
     cy = cx = cropped_size // 2
     base_centre = complex(cx, cy)
-    base_frame = xp.array(aa_ellipse(
+    base_frame = xp.array(draw_ellipse(
         (cropped_size, cropped_size), cy, cx, r, p.disk_brightness, minor, orientation
     ))
 
     if p.disk_blur_sigma > 0:
-
         base_frame = ndimage.gaussian_filter(base_frame, sigma=p.disk_blur_sigma)
     base_frame = xp.fft.fft2(xp.asarray(base_frame.copy()))
 
