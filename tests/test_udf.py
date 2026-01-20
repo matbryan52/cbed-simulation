@@ -2,9 +2,11 @@ import pytest
 import pathlib
 import numpy as np
 import libertem.api as lt
-from cbed_simulation.udf import CBEDSimUDF, build_udf_ds
+from cbed_simulation.udf import build_udf_ds
 from cbed_simulation.crystal_orientation import ExperimentInformation, OrientedPhase, IndexedPeaks
 from cbed_simulation.frame_builder import FrameParameters
+
+ROOT_PATH = pathlib.Path(__file__).parent
 
 
 @pytest.fixture(scope="module")
@@ -20,7 +22,7 @@ def test_udf_gen(ctx: lt.Context, tmp_path: pathlib.Path):
         pattern_scale_factor=200.,  # pixels / Å-1
     )
     frame_params = FrameParameters()
-    phase = OrientedPhase.from_cif("Si.cif")
+    phase = OrientedPhase.from_cif(ROOT_PATH / "Si.cif")
 
     out_path = tmp_path / "frames.npy"
     udf, ds = build_udf_ds(
