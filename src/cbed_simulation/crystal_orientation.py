@@ -58,7 +58,7 @@ class ExperimentInformation(NamedTuple):
     transmitted_centre_px: complex
     radius_px: int  # major axis
     pattern_scale_factor: float  # px / nm-1
-    ellipse_minor: float = 1.  # radius_px is major axis
+    ellipse_minor: float | None = None  # radius_px is major axis
     ellipse_orientation: float = 0.  # degrees
     pattern_rotation: float = 0.  # degrees
     voltage_kv: float = 200.
