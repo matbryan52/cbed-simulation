@@ -56,10 +56,10 @@ def load_ref(data_path: os.PathLike, scale=1 / 71):
             (ROOT_PATH / "Si.cif", ROOT_PATH / "ASTAR_Si_Euler1.txt"),
             (ROOT_PATH / "Si.cif", ROOT_PATH / "ASTAR_Si_Euler2.txt"),
             (ROOT_PATH / "Si.cif", ROOT_PATH / "ASTAR_Si_Euler3.txt"),
-            # (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler0.txt"),
-            # (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler1.txt"),
-            # (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler2.txt"),
-            # (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler3.txt"),
+            (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler0.txt"),
+            (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler1.txt"),
+            (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler2.txt"),
+            (ROOT_PATH / "GaN.cif", ROOT_PATH / "ASTAR_GaN_Euler3.txt"),
         )
     )
 def test_ref_comparison(cif_path: os.PathLike, ref_path: os.PathLike):
