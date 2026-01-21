@@ -3,12 +3,13 @@ import copy
 import pathlib
 import types
 from typing import NamedTuple, Literal
-
-import sparseconverter as spc
 import numpy as np
+
 from orix.quaternion import Rotation
 from orix.crystal_map import Phase
+from orix.vector.miller import Miller
 from diffsims.generators.simulation_generator import SimulationGenerator
+from diffsims.generators.zap_map_generator import get_rotation_from_z_to_direction
 from diffpy.structure.parsers.p_cif import P_cif
 from ase import Atoms
 from ase.io import read as read_atoms
@@ -17,9 +18,6 @@ from .utils import to_complex, to_array, get_backend, to_numpy
 from .distortions import DistortionConfig, apply_distortion
 from .crystal_bloch import scale_and_rotate, get_bloch_pattern, unpack_pattern
 from .frame_builder import build_frame, FrameParameters
-
-from orix.vector.miller import Miller
-from diffsims.generators.zap_map_generator import get_rotation_from_z_to_direction
 
 
 def orientation_for_hkl(phase: Phase, hkl: tuple[int, int, int]):
@@ -205,7 +203,7 @@ class IndexedPeaks(NamedTuple):
             ax,
             frame=None,
             max_extent=None,
-            spots=spc.for_backend(to_array(self.peaks)[:, ::-1], spc.NUMPY),
+            spots=to_numpy(to_array(self.peaks)[:, ::-1]),
             intensity=2,
             millers=self.hkls,
             scatter_alpha=point_alpha,
