@@ -109,6 +109,8 @@ def overlay_peaks(
         ("top", "bottom"),
         names,
     ):
+        if peaks is None:
+            continue
         ax.plot(peaks.offsets.real, peaks.offsets.imag, color + 'x', label=f"{name}")
         for idx, (offset, hkl) in enumerate(zip(peaks.offsets, peaks.hkls)):
             ax.text(
