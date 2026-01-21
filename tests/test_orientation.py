@@ -74,8 +74,8 @@ def test_kinematic_dynamic_equivalent(cif_path, orientation):
         radius_px=12,
         pattern_scale_factor=119.,  # pixels / Å-1
     )
-    peaks_kinematic = phase.peak_positions(experiment, bloch=False)
-    peaks_dynamic = phase.peak_positions(experiment, bloch=True)
+    peaks_kinematic = phase.peak_positions(experiment, dynamic_diff=False)
+    peaks_dynamic = phase.peak_positions(experiment, dynamic_diff=True)
 
     # make kinematic ⊆ dynamic
     peaks_kinematic_filt, _ = peaks_kinematic.match_peaks(peaks_dynamic)
@@ -168,7 +168,7 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
         orientation=euler,
     )
     sim_peaks = phase.peak_positions(
-        experiment, max_excitation_error=0.05,
+        experiment, max_excitation_error=0.05, dynamic_diff=True
     )
     sim_peaks_px = sim_peaks.to_pixels(experiment)
 
@@ -216,7 +216,7 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
     # Simulate peak positions from the inferred orientation
     or_phase = OrientedPhase.from_cif(cif_path=cif_path, orientation=angles)
     or_sim_peaks = or_phase.peak_positions(
-        experiment, max_excitation_error=0.05,
+        experiment, max_excitation_error=0.05, dynamic_diff=True,
     )
 
     peak_distances = np.abs(or_sim_peaks.offsets[:, np.newaxis] - sim_peaks.offsets[np.newaxis, :])
