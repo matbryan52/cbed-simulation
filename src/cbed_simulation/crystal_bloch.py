@@ -9,7 +9,6 @@ from orix.crystal_map.phase_list import Phase
 from diffpy.structure.parsers.p_cif import P_cif
 
 from ase import Atoms
-from ase.io import read as read_atoms
 from abtem.bloch import BlochWaves, StructureFactor
 from abtem.measurements import IndexedDiffractionPatterns
 
@@ -37,10 +36,8 @@ def rotation_for_hkl(cif_path: os.PathLike, hkl: tuple[int, int, int]):
 
 
 def get_bloch_pattern(
-    cif_or_atoms: os.PathLike | Atoms,
-    rotation: Rotation,
-    stretch_abc: tuple[float, float, float] = (1., 1., 1.),
-    scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
+    atoms: Atoms,
+    orientation: Rotation,
     progress: bool = False,
     voltage: float = 200e3,
     thickness_nm: float = 200,
@@ -52,15 +49,6 @@ def get_bloch_pattern(
         device = 'gpu'
     else:
         device = 'cpu'
-    if hasattr(cif_or_atoms, "cell"):
-        atoms = cif_or_atoms.copy()
-        atoms.cell = atoms.cell.copy()
-    else:
-        atoms = read_atoms(cif_or_atoms)
-    cellpar = atoms.cell.cellpar().copy()
-    cellpar[:3] *= np.asarray(stretch_abc)
-    cellpar[3:] *= np.asarray(scale_bc_ac_ab)
-    atoms.set_cell(cellpar, scale_atoms=True)
     structure_factor = StructureFactor(
         atoms,
         # Parameter name changed recently, FIXME figure out how to support both
@@ -68,7 +56,7 @@ def get_bloch_pattern(
         g_max=max_extent * 2,  # maximum scattering vector length (angle?)
         thermal_sigma=0.01,
         parametrization="lobato",
-        device=device
+        device=device,
     )
 
     bloch_waves = BlochWaves(
@@ -78,7 +66,7 @@ def get_bloch_pattern(
         # Parameter name changed recently, FIXME figure out how to support both
         # k_max=max_extent,
         g_max=max_extent,
-        orientation_matrix=rotation.to_matrix().squeeze(),
+        orientation_matrix=orientation.to_matrix().squeeze(),
         device=device,
     )
     patterns = bloch_waves.calculate_diffraction_patterns(

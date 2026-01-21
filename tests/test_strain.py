@@ -7,10 +7,11 @@ import py4DSTEM
 from py4DSTEM.braggvectors.braggvectors import BraggVectors
 from emdfile import PointListArray, PointList
 
-from cbed_simulation.crystal_orientation import ExperimentInformation, OrientedPhase
+from cbed_simulation.crystal_orientation import (
+    ExperimentInformation, OrientedPhase, LatticeMultipliers
+)
 from cbed_simulation.template_from_image import template_from_vacuum, shift_probe
 from cbed_simulation.frame_builder import FrameParameters
-
 from cbed_simulation.strain_decomposition import compute_strain_large_def
 
 ROOT_PATH = pathlib.Path(__file__).parent
@@ -33,7 +34,7 @@ def save_frames(frame_ref, frame_strained, savedir=pathlib.Path(".")):
     # )
 
 
-def ref_strained_crystal(cif_path, strain_val):
+def ref_strained_crystal(cif_path, strain_val, bloch: bool = True):
     experiment = ExperimentInformation(
         frame_shape=(512, 512),
         transmitted_centre_px=complex(240, 281),
@@ -44,11 +45,20 @@ def ref_strained_crystal(cif_path, strain_val):
         cif_path=cif_path,
         zone_axis=(0, 0, 1),
     )
-    sim_peaks_ref = phase.peak_positions(experiment)
-    sim_peaks_strained = phase.peak_positions(experiment, stretch_abc=strain_val)
+    lattice_mod = LatticeMultipliers(*(strain_val + (1, 1, 1)))
+    sim_peaks_ref = phase.peak_positions(
+        experiment, dynamic_diff=bloch
+    )
+    sim_peaks_strained = phase.peak_positions(
+        experiment, lattice_mod=lattice_mod, dynamic_diff=bloch
+    )
 
-    g1_hkl = (4, 0, 0)
-    g2_hkl = (0, 4, 0)
+    if cif_path.stem == "Si":
+        g1_hkl = (4, 0, 0)
+        g2_hkl = (0, 4, 0)
+    elif cif_path.stem == "GaN":
+        g1_hkl = (1, -1, 0)
+        g2_hkl = (1, 0, 0)
     return (sim_peaks_ref, sim_peaks_strained), strain_val, (g1_hkl, g2_hkl), (phase, experiment)
 
 
@@ -59,15 +69,20 @@ def ref_strained_crystal(cif_path, strain_val):
             (ROOT_PATH / "Si.cif", (1., 1.03, 1.)),
             (ROOT_PATH / "Si.cif", (1.03, 1., 1.)),
             (ROOT_PATH / "Si.cif", (0.98, 1., 1.)),
+            (ROOT_PATH / "GaN.cif", (1.02, 1.02, 1.)),
         )
 )
-def test_gem_ed_2D_strain_equations(cif_path, strain_val):
+@pytest.mark.parametrize(
+        "bloch",
+        (True, False),
+)
+def test_gem_ed_2D_strain_equations(cif_path, strain_val, bloch):
     (
         (sim_peaks_ref, sim_peaks_strained),
         strain_val,
         (g1_hkl, g2_hkl),
         (_, experiment),
-    ) = ref_strained_crystal(cif_path, strain_val)
+    ) = ref_strained_crystal(cif_path, strain_val, bloch=bloch)
 
     sim_pos_ref_px = sim_peaks_ref.to_pixels(experiment)
     sim_pos_strained_px = sim_peaks_strained.to_pixels(experiment)

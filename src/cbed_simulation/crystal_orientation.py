@@ -37,6 +37,30 @@ def orientation_for_hkl(phase: Phase, hkl: tuple[int, int, int]):
     return orientation
 
 
+class LatticeMultipliers(NamedTuple):
+    a: float = 1.
+    b: float = 1.
+    c: float = 1.
+    alpha: float = 1.
+    beta: float = 1.
+    gamma: float = 1.
+
+    def apply_ase(self, atoms: Atoms):
+        new_atoms = atoms.copy()
+        new_atoms.cell = atoms.cell.copy()
+        cellpar = new_atoms.cell.cellpar().copy()
+        cellpar *= np.asarray(self)
+        new_atoms.set_cell(cellpar, scale_atoms=True)
+        return new_atoms
+
+    def apply_diffsims(self, phase: Phase):
+        new_phase = phase.deepcopy()
+        cellpar = np.asarray(new_phase.structure.lattice.abcABG())
+        cellpar *= np.asarray(self)
+        new_phase.structure.lattice.setLatPar(*cellpar)
+        return new_phase
+
+
 class EulerAngles(NamedTuple):
     phi1: float
     Phi: float
@@ -329,19 +353,21 @@ class OrientedPhase(NamedTuple):
     def _kinematical_sim(
         self,
         experiment: ExperimentInformation,
-        max_excitation_error: float = 0.03,
+        max_excitation_error: float | None = None,
         max_extent: float | None = None,
-        stretch_abc: tuple[float, float, float] = (1., 1., 1.),
-        scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
+        lattice_mod: LatticeMultipliers = LatticeMultipliers(),
         backend: Literal["cupy", "cpu"] | types.ModuleType = "cpu",
     ):
         xp, _ = get_backend(backend)
+
+        if max_excitation_error is None:
+            max_excitation_error = 0.03
         gen = SimulationGenerator(
             accelerating_voltage=experiment.voltage_kv,
             precession_angle=experiment.precession_angle,
         )
         sim = gen.calculate_diffraction2d(
-            phase=self.phase,
+            phase=lattice_mod.apply_diffsims(self.phase),
             rotation=self.orientation.inv(),
             reciprocal_radius=max_extent,
             max_excitation_error=max_excitation_error,
@@ -370,19 +396,18 @@ class OrientedPhase(NamedTuple):
     def _dynamical_sim(
         self,
         experiment: ExperimentInformation,
-        max_excitation_error: float = 0.1,
+        max_excitation_error: float | None = None,
         max_extent: float | None = None,
-        stretch_abc: tuple[float, float, float] = (1., 1., 1.),
-        scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
+        lattice_mod: LatticeMultipliers = LatticeMultipliers(),
         backend: Literal["cupy", "cpu"] | types.ModuleType = "cpu",
     ):
         xp, _ = get_backend(backend)
+        if max_excitation_error is None:
+            max_excitation_error = 0.1
         pattern = get_bloch_pattern(
-            self.atoms,
+            lattice_mod.apply_ase(self.atoms),
             self.orientation,
             progress=False,
-            stretch_abc=stretch_abc,
-            scale_bc_ac_ab=scale_bc_ac_ab,
             voltage=experiment.voltage_kv * 1_000,
             max_extent=max_extent,
             max_excitation_error=max_excitation_error,
@@ -402,29 +427,21 @@ class OrientedPhase(NamedTuple):
         experiment: ExperimentInformation,
         max_excitation_error: float | None = None,
         max_extent: float | None = None,
-        stretch_abc: tuple[float, float, float] = (1., 1., 1.),
-        scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
-        bloch: bool = True,
+        lattice_mod: LatticeMultipliers = LatticeMultipliers(),
+        dynamic_diff: bool = False,
         backend: Literal["cupy", "cpu"] | types.ModuleType = "cpu",
     ):
         if max_extent is None:
             max_extent = experiment.max_extent
-        fn = self._kinematical_sim
-        if bloch:
+        if dynamic_diff:
             fn = self._dynamical_sim
-        kwargs = dict(
-            max_extent=max_extent,
-        )
-        if not bloch and (stretch_abc != (1., 1., 1.) or scale_bc_ac_ab != (1., 1., 1.)):
-            raise NotImplementedError("No support for strained crystal with kinematic simulation")
         else:
-            kwargs["stretch_abc"] = stretch_abc
-            kwargs["scale_bc_ac_ab"] = scale_bc_ac_ab
-        if max_excitation_error is not None:
-            kwargs["max_excitation_error"] = max_excitation_error
+            fn = self._kinematical_sim
         peaks = fn(
             experiment,
-            **kwargs,
+            max_extent=max_extent,
+            max_excitation_error=max_excitation_error,
+            lattice_mod=lattice_mod,
             backend=backend,
         )
         return peaks.to_numpy()
