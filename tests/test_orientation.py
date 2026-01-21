@@ -18,26 +18,6 @@ from cbed_simulation.frame_builder import FrameParameters
 ROOT_PATH = pathlib.Path(__file__).parent
 
 
-def reduce_orientation(crystal: Crystal, matrix: np.ndarray):
-    family = np.zeros_like(matrix)
-    for a0 in range(3):
-        in_range = np.all(
-            np.sum(
-                crystal.symmetry_reduction
-                * matrix[:, a0][None, :, None],
-                axis=1,
-            )
-            >= 0,
-            axis=1,
-        )
-
-        family[:, a0] = (
-            crystal.symmetry_operators[np.argmax(in_range)]
-            @ matrix[:, a0]
-        )
-    return family
-
-
 @pytest.mark.parametrize(
         "cif_path", (ROOT_PATH / "Si.cif",)
 )
@@ -262,7 +242,7 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
     )
     braggpeaks.set_raw_vectors(pointlist)
     braggpeaks.calibration.set_origin(
-        (sim_peaks_px.pos_000.real, sim_peaks_px.pos_000.imag),
+        (sim_peaks_px.pos_000.imag, sim_peaks_px.pos_000.real),
     )
     braggpeaks.calibration.set_Q_pixel_size(1 / experiment.pattern_scale_factor)
     braggpeaks.calibration.set_Q_pixel_units('A^-1')
