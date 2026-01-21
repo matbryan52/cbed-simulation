@@ -50,6 +50,34 @@ def test_001_no_rotation(cif_path):
 
 
 @pytest.mark.parametrize(
+        "cif_path, za, euler",
+        (
+            (ROOT_PATH / "Si.cif", (1, 1, 0), (315, 90, 45)),
+            (ROOT_PATH / "Si.cif", (1, 1, 1), (315, 54.74, 45)),
+            (ROOT_PATH / "Si.cif", (2, 0, 1), (270, 63.43, 90)),
+            (ROOT_PATH / "Si.cif", (0, 3, 0), (0, 90, 0)),
+            (ROOT_PATH / "Si.cif", (0, 3, 2), (0, 56.3, 0)),
+            (ROOT_PATH / "GaN.cif", (1, 1, 0), (330, 90, 30)),
+            # (ROOT_PATH / "GaN.cif", (2, 0, 1), (270, 50.83, 90)),
+        )
+)
+def test_za_euler_equal(cif_path, za, euler):
+    # Note first Euler angle is in-plane rotation so is arbitrary
+    # for a ZA orientation when comparing to ASTAR
+    # GaN rotations seem broken except for the simplest ?
+    phase = OrientedPhase.from_cif(
+        cif_path=cif_path,
+        zone_axis=za,
+    )
+    assert_allclose(
+        phase.orientation.to_euler(degrees=True).squeeze(),
+        euler,
+        rtol=0,
+        atol=0.1,
+    )
+
+
+@pytest.mark.parametrize(
         "cif_path", (
             ROOT_PATH / "Si.cif",
             ROOT_PATH / "GaN.cif",
