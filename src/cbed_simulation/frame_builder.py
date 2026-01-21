@@ -1,4 +1,5 @@
 from typing import NamedTuple, Sequence
+import warnings
 
 import numpy as np
 import scipy.ndimage as ndimage
@@ -287,6 +288,12 @@ def build_frame(
     xp=np,
     ndimage=ndimage,
 ) -> np.ndarray:
+
+    if offsets.size > 128:
+        warnings.warn(
+            f"Generating synthetic frame with {offsets.size} "
+            "spots, this make take some time"
+        )
 
     p = params
     h, w = frame_shape
