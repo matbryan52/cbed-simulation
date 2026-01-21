@@ -50,6 +50,49 @@ def test_001_no_rotation(cif_path):
 
 
 @pytest.mark.parametrize(
+        "cif_path", (
+            ROOT_PATH / "Si.cif",
+            ROOT_PATH / "GaN.cif",
+        )
+)
+@pytest.mark.parametrize(
+        "in_plane", (26, -73,)
+)
+@pytest.mark.parametrize(
+        "za", ((0, 0, 1), (1, 1, 0))
+)
+@pytest.mark.parametrize(
+        "bloch", (False, True)
+)
+def test_in_plane_rotation(cif_path, in_plane, za, bloch):
+    phase = OrientedPhase.from_cif(
+        cif_path=cif_path,
+        zone_axis=za,
+    )
+    phase_rot = phase.with_rot(
+        zone_axis=za,
+        in_plane_rot=in_plane,
+    )
+    experiment = ExperimentInformation(
+        frame_shape=(256, 256),
+        transmitted_centre_px=complex(128, 128),
+        radius_px=12,
+        pattern_scale_factor=119.
+    )
+    peaks = phase.peak_positions(experiment, dynamic_diff=bloch)
+    peaks_rot = phase_rot.peak_positions(experiment, dynamic_diff=bloch)
+
+    hkl = tuple(peaks.hkls[5])
+    assert hkl != (0, 0, 0)
+    pos = peaks.spot_position(hkl, centre_zero=True)
+    pos_rot = peaks_rot.spot_position(hkl, centre_zero=True)
+    assert_allclose(
+        np.rad2deg(np.angle(pos_rot) - np.angle(pos)),
+        in_plane,
+    )
+
+
+@pytest.mark.parametrize(
     "cif_path", (
         ROOT_PATH / "Si.cif",
         ROOT_PATH / "GaN.cif",

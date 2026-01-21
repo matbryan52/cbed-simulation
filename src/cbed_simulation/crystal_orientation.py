@@ -130,6 +130,7 @@ class IndexedPeaks(NamedTuple):
         return self.pos_000 + self.offsets
 
     def spot_index(self, hkl: tuple[int, int, int]) -> int:
+        hkl = tuple(hkl)
         for idx, _hkl in enumerate(self.hkls):
             if tuple(_hkl) == hkl:
                 return idx
@@ -280,6 +281,7 @@ class OrientedPhase(NamedTuple):
         cif_path: os.PathLike,
         orientation: tuple[float, float, float] | Rotation | None = None,
         zone_axis: tuple[int, int, int] | None = None,
+        in_plane_rot: float = 0.,  # degrees
     ):
         cif_path = pathlib.Path(cif_path)
         with cif_path.open('r') as fp:
@@ -295,7 +297,7 @@ class OrientedPhase(NamedTuple):
         if orientation is None and zone_axis is None:
             orientation = (0., 0., 0.)  # null Euler angles
         orientation = cls._get_orientation(
-            phase, orientation, zone_axis
+            phase, orientation, zone_axis, in_plane_rot
         )
         return cls(
             phase,
@@ -308,6 +310,7 @@ class OrientedPhase(NamedTuple):
         phase: Phase,
         orientation: tuple[float, float, float] | Rotation | None = None,
         zone_axis: tuple[int, int, int] | None = None,
+        in_plane_rot: float = 0.,
     ):
         assert not (
             (orientation is not None)
@@ -328,12 +331,21 @@ class OrientedPhase(NamedTuple):
         else:
             raise TypeError("Unrecognized orientation type")
         assert isinstance(orientation, Rotation)
+        if in_plane_rot != 0.:
+            orientation = Rotation.from_euler(
+                (0., 0., in_plane_rot),
+                # c2l results in a negative rotation when comparing
+                # the same peak from a rotated phase
+                # direction="crystal2lab",
+                degrees=True,
+            ) * orientation
         return orientation
 
     def with_rot(
         self,
         orientation: tuple[float, float, float] | Rotation | None = None,
         zone_axis: tuple[int, int, int] | None = None,
+        in_plane_rot: float = 0.,
     ):
         assert (
             (orientation is not None) or (zone_axis is not None)
@@ -345,6 +357,7 @@ class OrientedPhase(NamedTuple):
                 self.phase,
                 orientation,
                 zone_axis,
+                in_plane_rot,
             ),
         )
 
