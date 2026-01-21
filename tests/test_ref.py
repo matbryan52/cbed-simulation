@@ -63,6 +63,9 @@ def load_ref(data_path: os.PathLike, scale=1 / 71):
         )
     )
 def test_ref_comparison(cif_path: os.PathLike, ref_path: os.PathLike):
+    if not ref_path.is_file():
+        pytest.xfail("Missing ref file")
+
     ref_peaks, euler = load_ref(ref_path)
     ref_hkls = set(tuple(hkl) for hkl in ref_peaks.hkls)
 
