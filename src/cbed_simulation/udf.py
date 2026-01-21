@@ -5,7 +5,9 @@ from libertem.udf.base import UDF
 from libertem.common.math import prod
 from libertem.common.buffers import reshaped_view
 
-from .crystal_orientation import ExperimentInformation, FrameParameters, OrientedPhase
+from .crystal_orientation import (
+    ExperimentInformation, FrameParameters, OrientedPhase, LatticeMultipliers
+)
 
 
 class CBEDSimUDF(UDF):
@@ -21,10 +23,9 @@ class CBEDSimUDF(UDF):
         phase: OrientedPhase,
         frame_params: FrameParameters,
         orientation: tuple[float, float, float] | None = None,
-        stretch_abc: tuple[float, float, float] = (1., 1., 1.),
-        scale_bc_ac_ab: tuple[float, float, float] = (1., 1., 1.),
+        lattice_mod: LatticeMultipliers = LatticeMultipliers(),
         max_excitation_error=None,
-        bloch: bool = False,
+        dynamic_diff: bool = False,
         _is_master=True,
     ):
         # We keep a local copy that is not transferred to workers
@@ -35,10 +36,9 @@ class CBEDSimUDF(UDF):
             phase=phase,
             frame_params=frame_params,
             orientation=orientation,
-            stretch_abc=stretch_abc,
-            scale_bc_ac_ab=scale_bc_ac_ab,
+            lattice_mod=lattice_mod,
             max_excitation_error=max_excitation_error,
-            bloch=bloch,
+            dynamic_diff=dynamic_diff,
             # This will be the value set on the worker nodes
             _is_master=False
         )
@@ -96,10 +96,9 @@ class CBEDSimUDF(UDF):
             )
         sim_peaks = phase.peak_positions(
             p.experiment,
-            stretch_abc=tuple(p.stretch_abc),
-            scale_bc_ac_ab=tuple(p.scale_bc_ac_ab),
             max_excitation_error=p.max_excitation_error,
-            bloch=p.bloch,
+            lattice_mod=p.lattice_mod,
+            dynamic_diff=p.dynamic_diff,
             backend=self.xp,
         )
         sim_frame = phase.synthetic(
@@ -129,26 +128,22 @@ def build_udf_ds(
     experiment: ExperimentInformation,
     frame_parameters: FrameParameters,
     orientation: tuple[float, float, float] | np.ndarray | None = None,
-    stretch_abc: tuple[float, float, float] | np.ndarray = (1., 1., 1.),
-    scale_bc_ac_ab: tuple[float, float, float] | np.ndarray = (1., 1., 1.),
+    lattice_mod: LatticeMultipliers | np.ndarray = None,
     max_excitation_error=None,
-    bloch: bool = False,
+    dynamic_diff: bool = False,
 ):
     num_frames = np.prod(nav_shape, dtype=int)
     ds = ctx.load("memory", data=np.arange(num_frames).reshape(*nav_shape, 1, 1))
+    if lattice_mod is None:
+        lattice_mod = LatticeMultipliers()
+    elif isinstance(lattice_mod, np.ndarray):
+        assert lattice_mod.shape == nav_shape, "lattice_mod array incompatible with aux_data"
+        lattice_mod = CBEDSimUDF.aux_data(
+            lattice_mod.ravel(), kind="nav", dtype=object
+        )
+    else:
+        raise ValueError("Unsupported lattice_mod type")
     # NOTE initial orientation of phase will be ignored
-    stretch_abc = np.asarray(stretch_abc)
-    if stretch_abc.size != 3:
-        assert stretch_abc.shape == nav_shape + (3,), "stretch_abc incompatible with aux_data"
-        stretch_abc = CBEDSimUDF.aux_data(
-            stretch_abc.ravel(), kind="nav", extra_shape=(3,)
-        )
-    scale_bc_ac_ab = np.asarray(scale_bc_ac_ab)
-    if scale_bc_ac_ab.size != 3:
-        assert scale_bc_ac_ab.shape == nav_shape + (3,), "scale_bc_ac_ab incompatible with aux_data"
-        scale_bc_ac_ab = CBEDSimUDF.aux_data(
-            scale_bc_ac_ab.ravel(), kind="nav", extra_shape=(3,)
-        )
     if orientation is not None:
         orientation = np.asarray(orientation)
         if orientation.size != 3:
@@ -161,10 +156,9 @@ def build_udf_ds(
         experiment,
         phase,
         frame_parameters,
-        stretch_abc=stretch_abc,
-        scale_bc_ac_ab=scale_bc_ac_ab,
+        lattice_mod=lattice_mod,
         orientation=orientation,
         max_excitation_error=max_excitation_error,
-        bloch=bloch,
+        dynamic_diff=dynamic_diff,
     )
     return udf, ds
