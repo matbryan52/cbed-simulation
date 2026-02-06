@@ -114,6 +114,15 @@ class ExperimentInformation(NamedTuple):
         params.update(kwargs)
         return type(self)(**params)
 
+    @classmethod
+    def default(cls):
+        return cls(
+            frame_shape=(512, 512),
+            transmitted_centre_px=256 + 256 * 1j,
+            radius_px=12,
+            pattern_scale_factor=120,
+        )
+
 
 class IndexedPeaks(NamedTuple):
     pos_000: complex
