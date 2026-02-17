@@ -5,7 +5,7 @@ import numpy as np
 from diffsims.generators.zap_map_generator import get_rotation_from_z_to_direction
 from orix.vector.miller import Miller
 from orix.quaternion.rotation import Rotation
-from orix.crystal_map.phase_list import Phase
+from orix.crystal_map import Phase
 from diffpy.structure.parsers.p_cif import P_cif
 
 from ase import Atoms
