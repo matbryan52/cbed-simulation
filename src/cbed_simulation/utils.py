@@ -5,7 +5,8 @@ import numpy as np
 from numpy.typing import ArrayLike
 import scipy.ndimage as ndimage
 import sparseconverter
-from orix.vector import Vector3d
+from orix.crystal_map import Phase
+from orix.vector import Vector3d, Miller
 from orix.quaternion import Rotation
 from orix.io.plugins.ang import file_reader
 
@@ -127,3 +128,21 @@ def overlay_peaks(
     if savepath is not None:
         plt.savefig(savepath)
     return fig, ax
+
+
+def rotation_from_to(vfrom: Vector3d, vto: Vector3d) -> Rotation:
+    return Rotation.from_axes_angles(
+        vfrom.cross(vto),
+        vfrom.angle_with(vto),
+    ).squeeze()
+
+
+def orientation_for_hkl(phase: Phase, hkl: tuple[int, int, int]):
+    """
+    Get the crystal2lab Rotation from Z-axis to an hkl
+    """
+    miller = Miller(hkl=hkl, phase=phase)
+    vec = Vector3d((miller.x.item(), miller.y.item(), miller.z.item()))
+    # NOTE this could be replaced with Miller(hkl=(0, 0, 1)) to be more correct
+    # but this would need an equivalent change in strain_orientation_mapping
+    return rotation_from_to(Vector3d.zvector(), vec)

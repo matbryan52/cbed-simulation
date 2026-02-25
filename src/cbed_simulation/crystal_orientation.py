@@ -5,34 +5,17 @@ import types
 from typing import NamedTuple, Literal
 import numpy as np
 
-from orix.quaternion import Rotation
+from orix.quaternion import Rotation, Quaternion
 from orix.crystal_map import Phase
-from orix.vector.miller import Miller
 from diffsims.generators.simulation_generator import SimulationGenerator
-from diffsims.generators.zap_map_generator import get_rotation_from_z_to_direction
 from diffpy.structure.parsers.p_cif import P_cif
 from ase import Atoms
 from ase.io import read as read_atoms
 
-from .utils import to_complex, to_array, get_backend, to_numpy
+from .utils import to_complex, to_array, get_backend, to_numpy, orientation_for_hkl
 from .distortions import DistortionConfig, apply_distortion
 from .crystal_bloch import scale_and_rotate, get_bloch_pattern, unpack_pattern
 from .frame_builder import build_frame, FrameParameters
-
-
-def orientation_for_hkl(phase: Phase, hkl: tuple[int, int, int]):
-    # raise NotImplementedError("Verify this against some cases from Vesta or JEMS ?")
-    miller = Miller(hkl=hkl, phase=phase)
-    orientation = get_rotation_from_z_to_direction(
-        phase.structure,
-        miller.uvw.squeeze(),
-    )
-    orientation = Rotation.from_euler(
-        orientation,
-        direction="crystal2lab",
-        degrees=True,
-    )
-    return orientation
 
 
 class LatticeMultipliers(NamedTuple):
@@ -335,11 +318,11 @@ class OrientedPhase(NamedTuple):
                 direction="crystal2lab",
                 degrees=True,
             )
-        elif isinstance(orientation, Rotation):
+        elif isinstance(orientation, Quaternion):
             pass
         else:
             raise TypeError("Unrecognized orientation type")
-        assert isinstance(orientation, Rotation)
+        assert isinstance(orientation, Quaternion)
         if in_plane_rot != 0.:
             orientation = Rotation.from_euler(
                 (0., 0., in_plane_rot),
