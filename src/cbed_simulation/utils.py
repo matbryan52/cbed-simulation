@@ -1,10 +1,13 @@
 import os
 import types
+import copy
+import pathlib
 from typing import Literal, TYPE_CHECKING
 import numpy as np
 from numpy.typing import ArrayLike
 import scipy.ndimage as ndimage
 import sparseconverter
+from diffpy.structure.parsers.p_cif import P_cif
 from orix.crystal_map import Phase
 from orix.vector import Vector3d, Miller
 from orix.quaternion import Rotation
@@ -146,3 +149,17 @@ def orientation_for_hkl(phase: Phase, hkl: tuple[int, int, int]):
     # NOTE this could be replaced with Miller(hkl=(0, 0, 1)) to be more correct
     # but this would need an equivalent change in strain_orientation_mapping
     return rotation_from_to(Vector3d.zvector(), vec)
+
+
+def cif_to_phase(cif_path: os.PathLike):
+    cif_path = pathlib.Path(cif_path)
+    with cif_path.open('r') as fp:
+        cif_str = fp.read()
+    cif = P_cif()
+    structure = cif.parse(cif_str)
+    spacegroup = cif.spacegroup
+    return Phase(
+        cif_path.stem,
+        space_group=spacegroup,
+        structure=copy.deepcopy(structure),
+    )
