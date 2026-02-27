@@ -275,17 +275,7 @@ class OrientedPhase(NamedTuple):
         zone_axis: tuple[int, int, int] | None = None,
         in_plane_rot: float = 0.,  # degrees
     ):
-        cif_path = pathlib.Path(cif_path)
-        with cif_path.open('r') as fp:
-            cif_str = fp.read()
-        cif = P_cif()
-        structure = cif.parse(cif_str)
-        spacegroup = cif.spacegroup
-        phase = Phase(
-            cif_path.stem,
-            space_group=spacegroup,
-            structure=copy.deepcopy(structure),
-        )
+        phase = cif_to_phase(cif_path)
         if orientation is None and zone_axis is None:
             orientation = (0., 0., 0.)  # null Euler angles
         orientation = cls._get_orientation(
