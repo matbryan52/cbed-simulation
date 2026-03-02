@@ -1,6 +1,4 @@
 import os
-import copy
-import pathlib
 import types
 from typing import NamedTuple, Literal
 import numpy as np
@@ -8,11 +6,10 @@ import numpy as np
 from orix.quaternion import Rotation, Quaternion
 from orix.crystal_map import Phase
 from diffsims.generators.simulation_generator import SimulationGenerator
-from diffpy.structure.parsers.p_cif import P_cif
 from ase import Atoms
 from ase.io import read as read_atoms
 
-from .utils import to_complex, to_array, get_backend, to_numpy, orientation_for_hkl
+from .utils import to_complex, to_array, get_backend, to_numpy, orientation_for_hkl, cif_to_phase
 from .distortions import DistortionConfig, apply_distortion
 from .crystal_bloch import scale_and_rotate, get_bloch_pattern, unpack_pattern
 from .frame_builder import build_frame, FrameParameters
