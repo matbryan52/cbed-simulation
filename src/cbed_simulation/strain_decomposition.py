@@ -131,6 +131,19 @@ class StrainResult(NamedTuple):
             return vec_complex
         return vec_yx
 
+    def strain_limit(self):
+        return max(
+            np.nanmax(np.abs(self.e_xx)),
+            np.nanmax(np.abs(self.e_xy)),
+            np.nanmax(np.abs(self.e_yy)),
+        )
+
+    def theta_limit(self, degrees: bool = False):
+        if degrees:
+            return np.nanmax(np.abs(self.theta_deg))
+        else:
+            return np.nanmax(np.abs(self.theta))
+
 
 def _rotate_strain(e_xx, e_xy, e_yy, rotation_rad):
     if np.allclose(rotation_rad, 0.):
