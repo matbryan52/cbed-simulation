@@ -90,6 +90,11 @@ class CBEDSimUDF(UDF):
     def process_frame(self, frame):
         p = self.params
         phase: OrientedPhase = p.phase
+        lattice_mod = p.lattice_mod
+        try:
+            lattice_mod = lattice_mod.item()
+        except AttributeError:
+            pass
         if p.orientation is not None:
             phase = phase.with_rot(
                 p.orientation,
@@ -97,7 +102,7 @@ class CBEDSimUDF(UDF):
         sim_peaks = phase.peak_positions(
             p.experiment,
             max_excitation_error=p.max_excitation_error,
-            lattice_mod=p.lattice_mod,
+            lattice_mod=lattice_mod,
             dynamic_diff=p.dynamic_diff,
             backend=self.xp,
         )
