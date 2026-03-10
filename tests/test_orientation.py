@@ -274,7 +274,7 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
         ax.set_title(f"In: {euler}, Out: {tuple(np.round(angles, decimals=1))}")
         fig.tight_layout()
         plt.savefig(ROOT_PATH / f"out_{cif_path.stem}_{euler}.png")
-        fp = FrameParameters(intensity_from_radius=True)
+        fp = FrameParameters(intensity_mode="radius")
         frame = or_phase.synthetic(experiment, sim_peaks, frame_params=fp)
         plt.imsave(ROOT_PATH / "out_frame.png", frame)
 
