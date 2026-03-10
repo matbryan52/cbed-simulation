@@ -13,7 +13,6 @@ dependencies = [
     "numpy",
     "scikit-image",
     "scipy",
-    "perlin-numpy",
     "orix",
     "abtem",
     "ase",
