@@ -222,7 +222,7 @@ def test_py4DSTEM_template_match(cif_path, strain_val):
         disk_blur_sigma=0.75,
         inelastic_scatter_sigma=0.,
         additive_noise_scale=0.,
-        intensity_from_radius=True,
+        intensity_mode="radius",
     )
 
     frame_ref = phase.synthetic(experiment, sim_peaks_ref, frame_params=frame_params)
@@ -279,7 +279,7 @@ def test_py4DSTEM_2D_strain_framegen(cif_path, strain_val):
         disk_blur_sigma=0.,
         inelastic_scatter_sigma=0.,
         additive_noise_scale=0.,
-        intensity_from_radius=True,
+        intensity_mode="radius",
     )
 
     frame_ref = phase.synthetic(experiment, sim_peaks_ref, frame_params=frame_params)

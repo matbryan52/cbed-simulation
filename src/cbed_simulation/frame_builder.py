@@ -1,4 +1,4 @@
-from typing import NamedTuple, Sequence
+from typing import NamedTuple, Sequence, Literal
 import warnings
 
 import numpy as np
@@ -267,8 +267,8 @@ class FrameParameters(NamedTuple):
     # the default blur value effectively anti-aliases
     # the disk without changing the radius more than 1 px
     disk_blur_sigma: float = 0.5
-    intensity_from_radius: bool = False
-    intensity_falloff_power: float = 4.
+    intensity_mode: Literal["raw", "radius", "power"] = "raw"
+    intensity_power: float = 4.
     textured: bool = True
     frame_brightness: float = 40.
     inelastic_scatter_sigma: float = 4.
@@ -353,11 +353,13 @@ def build_frame(
     radius -= radius.max()
     radius *= -1
 
-    if intensities is None or p.intensity_from_radius:
+    if intensities is None or p.intensity_mode == "radius":
         radius_adjusted = radius.copy()
-        radius_adjusted **= p.intensity_falloff_power
+        radius_adjusted **= p.intensity_power
     else:
         intensities = intensities.copy()
+        if p.intensity_mode == "power":
+            intensities **= (1 / p.intensity_power)
         intensities /= intensities.max()
 
     valid_shifts = []
@@ -371,7 +373,7 @@ def build_frame(
 
         this_shift = real_pos - base_centre
         valid_shifts.append((this_shift.imag, this_shift.real))
-        if intensities is None or p.intensity_from_radius:
+        if intensities is None or p.intensity_mode == "radius":
             intensity = radius_adjusted[int(round(real_pos.imag)), int(round(real_pos.real))]
         valid_intensities.append(intensity)
 

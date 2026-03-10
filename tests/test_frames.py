@@ -27,7 +27,7 @@ def test_fwhm(radius, blur_sigma):
         disk_blur_sigma=blur_sigma,
         inelastic_scatter_sigma=0.,
         additive_noise_scale=0.,
-        intensity_from_radius=True,
+        intensity_mode="radius",
     )
     peaks = IndexedPeaks(
         experiment.transmitted_centre_px,
@@ -76,7 +76,7 @@ def test_offset_position(frame_shape, radius, centre, offset):
         disk_blur_sigma=0.5,
         inelastic_scatter_sigma=0.,
         additive_noise_scale=0.,
-        intensity_from_radius=True,
+        intensity_mode="radius",
     )
     peaks = IndexedPeaks(
         experiment.transmitted_centre_px,
