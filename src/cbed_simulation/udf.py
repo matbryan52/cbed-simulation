@@ -97,10 +97,12 @@ class CBEDSimUDF(UDF):
         sim_peaks = phase.peak_positions(
             p.experiment,
             max_excitation_error=p.max_excitation_error,
-            lattice_mod=p.lattice_mod,
+            lattice_mod=p.lattice_mod.item(),
             dynamic_diff=p.dynamic_diff,
             backend=self.xp,
         )
+        sim_peaks.modify_000_intensity(0.5)
+        sim_peaks.modify_intensities(0.25)
         sim_frame = phase.synthetic(
             p.experiment,
             sim_peaks,
