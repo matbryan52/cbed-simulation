@@ -1,6 +1,5 @@
 [project]
 name = "cbed-simulation"
-version = "0.1.0"
 description = "Generate CBED patterns from crystal definition and orientation"
 readme = "README.md"
 license = "MIT"
@@ -8,19 +7,28 @@ license-files = ["LICENSE"]
 authors = [
     { name = "Matthew Bryan", email = "matthew.bryan@cea.fr" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "numpy",
+    "numpy>2",
     "scikit-image",
     "scipy",
     "perlin-numpy",
     "orix",
     "abtem",
+    "pandas<3",
     "ase",
     "diffsims",
     "diffpy.structure",
 ]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-cov", "py4dstem", "libertem", "pymatgen"]
+udf = ["libertem"]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/cbed_simulation/__version__.py"

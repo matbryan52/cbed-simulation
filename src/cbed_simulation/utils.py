@@ -6,7 +6,6 @@ from typing import Literal, TYPE_CHECKING
 import numpy as np
 from numpy.typing import ArrayLike
 import scipy.ndimage as ndimage
-import sparseconverter
 from diffpy.structure.parsers.p_cif import P_cif
 from orix.crystal_map import Phase
 from orix.vector import Vector3d, Miller
@@ -95,7 +94,10 @@ def get_backend(backend: Literal["cupy", "cpu"] | types.ModuleType):
 
 
 def to_numpy(arr: ArrayLike):
-    return sparseconverter.for_backend(arr, sparseconverter.NUMPY)
+    if arr.device != 'cpu':
+        return arr.get()
+    else:
+        return arr
 
 
 def overlay_peaks(

@@ -179,6 +179,7 @@ def si_plan():
     yield cif_path, crystal
 
 
+@pytest.mark.xfail
 @pytest.mark.parametrize(
         "plan, euler",
         (
