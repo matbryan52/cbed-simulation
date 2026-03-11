@@ -2,7 +2,7 @@
 name = "cbed-simulation"
 description = "Generate CBED patterns from crystal definition and orientation"
 readme = "README.md"
-license = "MIT"
+license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 authors = [
     { name = "Matthew Bryan", email = "matthew.bryan@cea.fr" }
@@ -12,10 +12,9 @@ dependencies = [
     "numpy>2",
     "scikit-image",
     "scipy",
-    "perlin-numpy",
     "orix",
     "abtem",
-    "pandas<3",
+    "pandas<3",  # for abtem compatibility
     "ase",
     "diffsims",
     "diffpy.structure",
