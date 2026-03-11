@@ -9,7 +9,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "numpy",
+    "numpy>2",
     "scikit-image",
     "scipy",
     "perlin-numpy",
@@ -22,7 +22,8 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov", "py4dstem"]
+test = ["pytest", "pytest-cov", "py4dstem", "libertem"]
+udf = ["libertem"]
 
 [build-system]
 requires = ["hatchling"]
