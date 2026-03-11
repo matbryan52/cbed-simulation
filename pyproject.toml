@@ -7,7 +7,7 @@ license-files = ["LICENSE"]
 authors = [
     { name = "Matthew Bryan", email = "matthew.bryan@cea.fr" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "numpy>2",
     "scikit-image",
