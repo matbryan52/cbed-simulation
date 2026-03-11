@@ -9,7 +9,9 @@ from cbed_simulation.frame_builder import FrameParameters
 try:
     import cupy as cp
 except ImportError:
-    pytest.skip("No cupy available, skipping GPU tests")
+    cp = None
+
+pytestmark = pytest.mark.skipif(cp is None, reason="No cupy available, skipping GPU tests")
 
 
 ROOT_PATH = pathlib.Path(__file__).parent
