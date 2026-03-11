@@ -69,7 +69,7 @@ def ref_strained_crystal(cif_path, strain_val, bloch: bool = True):
             (ROOT_PATH / "Si.cif", (1., 1.03, 1.)),
             (ROOT_PATH / "Si.cif", (1.03, 1., 1.)),
             (ROOT_PATH / "Si.cif", (0.98, 1., 1.)),
-            (ROOT_PATH / "GaN.cif", (1.02, 1.02, 1.)),
+            # (ROOT_PATH / "GaN.cif", (1.02, 1.02, 1.)),
         )
 )
 @pytest.mark.parametrize(

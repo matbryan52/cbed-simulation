@@ -15,6 +15,7 @@ dependencies = [
     "perlin-numpy",
     "orix",
     "abtem",
+    "pandas<3",
     "ase",
     "diffsims",
     "diffpy.structure",
