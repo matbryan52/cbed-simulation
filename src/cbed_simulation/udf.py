@@ -94,10 +94,15 @@ class CBEDSimUDF(UDF):
             phase = phase.with_rot(
                 p.orientation,
             )
+        if isinstance(p.lattice_mod, LatticeMultipliers):
+            lattice_mod = p.lattice_mod
+        else:
+            # aux_data case: lattice_mod is in an array
+            lattice_mod = p.lattice_mod.item()
         sim_peaks = phase.peak_positions(
             p.experiment,
             max_excitation_error=p.max_excitation_error,
-            lattice_mod=p.lattice_mod.item(),
+            lattice_mod=lattice_mod,
             dynamic_diff=p.dynamic_diff,
             backend=self.xp,
         )

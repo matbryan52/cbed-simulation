@@ -22,7 +22,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov", "py4dstem", "libertem"]
+test = ["pytest", "pytest-cov", "py4dstem", "libertem", "pymatgen"]
 udf = ["libertem"]
 
 [build-system]
