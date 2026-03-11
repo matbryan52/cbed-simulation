@@ -1,6 +1,5 @@
 [project]
 name = "cbed-simulation"
-version = "0.1.0"
 description = "Generate CBED patterns from crystal definition and orientation"
 readme = "README.md"
 license = "MIT"
@@ -20,7 +19,14 @@ dependencies = [
     "diffsims",
     "diffpy.structure",
 ]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+test = ["pytest", "py4dstem"]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/cbed_simulation/__version__.py"
