@@ -22,7 +22,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-test = ["pytest", "py4dstem"]
+test = ["pytest", "pytest-cov", "py4dstem"]
 
 [build-system]
 requires = ["hatchling"]
