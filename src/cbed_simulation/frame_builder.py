@@ -268,7 +268,6 @@ class FrameParameters(NamedTuple):
     # the disk without changing the radius more than 1 px
     disk_blur_sigma: float = 0.5
     intensity_from_radius: bool = False
-    intensity_falloff_power: float = 4.
     textured: bool = True
     frame_brightness: float = 40.
     inelastic_scatter_sigma: float = 4.
@@ -353,12 +352,11 @@ def build_frame(
     radius -= radius.max()
     radius *= -1
 
-    if intensities is None or p.intensity_from_radius:
-        radius_adjusted = radius.copy()
-        radius_adjusted **= p.intensity_falloff_power
-    else:
+    if intensities is not None:
         intensities = intensities.copy()
         intensities /= intensities.max()
+    else:
+        assert p.intensity_from_radius, "Must supply intensities or set intensity_from_radius"
 
     valid_shifts = []
     valid_intensities = []
@@ -371,8 +369,8 @@ def build_frame(
 
         this_shift = real_pos - base_centre
         valid_shifts.append((this_shift.imag, this_shift.real))
-        if intensities is None or p.intensity_from_radius:
-            intensity = radius_adjusted[int(round(real_pos.imag)), int(round(real_pos.real))]
+        if p.intensity_from_radius:
+            intensity = radius[int(round(real_pos.imag)), int(round(real_pos.real))] ** 3
         valid_intensities.append(intensity)
 
     valid_shifts = xp.asarray(valid_shifts)
