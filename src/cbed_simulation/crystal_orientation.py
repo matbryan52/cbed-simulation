@@ -1,4 +1,5 @@
 import os
+import pathlib
 import types
 from typing import NamedTuple, Literal
 import numpy as np
@@ -6,12 +7,17 @@ import numpy as np
 from orix.quaternion import Rotation, Quaternion
 from orix.crystal_map import Phase
 from diffsims.generators.simulation_generator import SimulationGenerator
-from ase import Atoms
-from ase.io import read as read_atoms
 
-from .utils import to_complex, to_array, get_backend, to_numpy, orientation_for_hkl, cif_to_phase
+from .utils import (
+    to_complex,
+    to_array,
+    get_backend,
+    to_numpy,
+    orientation_for_hkl,
+    cif_to_phase,
+    scale_and_rotate,
+)
 from .distortions import DistortionConfig, apply_distortion
-from .crystal_bloch import scale_and_rotate, get_bloch_pattern, unpack_pattern
 from .frame_builder import build_frame, FrameParameters
 
 
@@ -23,7 +29,7 @@ class LatticeMultipliers(NamedTuple):
     beta: float = 1.
     gamma: float = 1.
 
-    def apply_ase(self, atoms: Atoms):
+    def apply_ase(self, atoms):
         new_atoms = atoms.copy()
         new_atoms.cell = atoms.cell.copy()
         cellpar = new_atoms.cell.cellpar().copy()
@@ -260,8 +266,8 @@ class Pixelsize(NamedTuple):
 
 
 class OrientedPhase(NamedTuple):
+    cif_path: os.PathLike
     phase: Phase
-    atoms: Atoms
     orientation: Rotation
 
     @classmethod
@@ -272,6 +278,7 @@ class OrientedPhase(NamedTuple):
         zone_axis: tuple[int, int, int] | None = None,
         in_plane_rot: float = 0.,  # degrees
     ):
+        cif_path = pathlib.Path(cif_path).absolute()
         phase = cif_to_phase(cif_path)
         if orientation is None and zone_axis is None:
             orientation = (0., 0., 0.)  # null Euler angles
@@ -279,8 +286,8 @@ class OrientedPhase(NamedTuple):
             phase, orientation, zone_axis, in_plane_rot
         )
         return cls(
+            cif_path,
             phase,
-            read_atoms(cif_path),
             orientation,
         )
 
@@ -320,6 +327,11 @@ class OrientedPhase(NamedTuple):
             ) * orientation
         return orientation
 
+    @property
+    def atoms(self):
+        from ase.io import read as read_atoms
+        return read_atoms(self.cif_path)
+
     def with_rot(
         self,
         orientation: tuple[float, float, float] | Rotation | None = None,
@@ -330,8 +342,8 @@ class OrientedPhase(NamedTuple):
             (orientation is not None) or (zone_axis is not None)
         ), "Must supply one of orientation or zone_axis"
         return type(self)(
+            self.cif_path,
             self.phase,
-            self.atoms,
             self._get_orientation(
                 self.phase,
                 orientation,
@@ -391,6 +403,8 @@ class OrientedPhase(NamedTuple):
         lattice_mod: LatticeMultipliers = LatticeMultipliers(),
         backend: Literal["cupy", "cpu"] | types.ModuleType = "cpu",
     ):
+        from .crystal_bloch import get_bloch_pattern, unpack_pattern
+
         xp, _ = get_backend(backend)
         if max_excitation_error is None:
             max_excitation_error = 0.1
