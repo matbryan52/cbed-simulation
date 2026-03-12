@@ -13,17 +13,19 @@ dependencies = [
     "scikit-image",
     "scipy",
     "orix",
-    "abtem",
-    "pandas<3",  # for abtem compatibility
-    "ase",
     "diffsims",
     "diffpy.structure",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov", "py4dstem", "libertem", "pymatgen"]
+test = ["pytest", "pytest-cov", "py4dstem", "libertem", "pymatgen", "pandas<3", "abtem", "ase"]
 udf = ["libertem"]
+bloch = [
+    "abtem",
+    "pandas<3",  # for abtem compatibility
+    "ase",
+]
 
 [build-system]
 requires = ["hatchling"]
