@@ -202,14 +202,18 @@ def fourier_shift(image_fft: np.ndarray, shift: np.ndarray, out=None, xp=np):
     return out
 
 
-def gen_noise(shape, scale=None, xp=np):
+def gen_noise(shape: tuple[int, int], scale: int | None = None, xp=np):
+    """
+    Noise is distributed between -1..1
+    """
     if scale is None:
-        scale = min(shape)
+        scale = max(1, min(shape) // 8)
     true_shape = tuple(s + (scale - (s % scale)) for s in shape)
     noise = generate_perlin_noise_2d(true_shape, (scale, scale), xp=xp)
     noise -= noise.min()
     noise /= noise.max()
-    noise += 1
+    noise -= 0.5
+    noise *= 2
     return noise[:shape[0], :shape[1]]
 
 
@@ -263,13 +267,14 @@ def g1g2_pattern(frame_shape, g1, g2):
 
 
 class FrameParameters(NamedTuple):
-    disk_brightness: float = 1.
+    intensity_from_radius: bool = False
+    intensity_radius_power: float = 18.
+    textured: bool = True
+    texture_period: float = 8
+    texture_strength: float = 0.5
     # the default blur value effectively anti-aliases
     # the disk without changing the radius more than 1 px
     disk_blur_sigma: float = 0.5
-    intensity_from_radius: bool = False
-    textured: bool = True
-    frame_brightness: float = 40.
     inelastic_scatter_sigma: float = 4.
     additive_noise_scale: float = 0.1
     multiplicative_noise_scale: float = 0.
@@ -303,16 +308,21 @@ def build_frame(
     assert centre.imag == int(centre.imag), "centre position must be integer"
     expanded_centre = centre + complex(buffer, buffer)
 
-    frame = np.zeros(
+    frame = xp.zeros(
         (h + 2 * buffer, w + 2 * buffer)
-    ).astype(dtype=np.float32)
+    ).astype(dtype=xp.float32)
     if p.textured:
-        texture = gen_noise(frame_shape, xp=xp)
+        scale = max(1, max(h, w) // p.texture_period)
+        texture = gen_noise(frame_shape, scale=scale, xp=xp)
+        texture *= p.texture_strength
+        texture += 1.
+        texture = xp.clip(texture, 0., 2.)
         texture = xp.pad(
             texture,
             ((buffer, buffer), (buffer, buffer))
         )
         assert texture.shape == frame.shape
+        texture = xp.asarray(texture)
 
     if minor is not None:
         bounding_r = max(r, minor)
@@ -326,7 +336,7 @@ def build_frame(
     cy = cx = cropped_size // 2
     base_centre = complex(cx, cy)
     base_frame = xp.array(draw_ellipse(
-        (cropped_size, cropped_size), cy, cx, r, p.disk_brightness, minor, orientation
+        (cropped_size, cropped_size), cy, cx, r, 1, minor, orientation
     ))
 
     if p.disk_blur_sigma > 0:
@@ -347,16 +357,20 @@ def build_frame(
         ),
         axis=0,
     )
-    max_r = min(h, w) / 2.
-    radius /= max_r
+
+    radius /= radius.max()
     radius -= radius.max()
     radius *= -1
+    radius /= radius.max()
 
     if intensities is not None:
         intensities = intensities.copy()
         intensities /= intensities.max()
     else:
         assert p.intensity_from_radius, "Must supply intensities or set intensity_from_radius"
+
+    intensity_radius = radius.copy()
+    intensity_radius **= p.intensity_radius_power
 
     valid_shifts = []
     valid_intensities = []
@@ -370,7 +384,7 @@ def build_frame(
         this_shift = real_pos - base_centre
         valid_shifts.append((this_shift.imag, this_shift.real))
         if p.intensity_from_radius:
-            intensity = radius[int(round(real_pos.imag)), int(round(real_pos.real))] ** 3
+            intensity = intensity_radius[int(round(real_pos.imag)), int(round(real_pos.real))]
         valid_intensities.append(intensity)
 
     valid_shifts = xp.asarray(valid_shifts)
@@ -400,10 +414,10 @@ def build_frame(
         target, source = to_slices(target_tup, offsets)
         frame[i][target] = subpixel_frame[i][source]
 
-    if p.textured:
-        frame *= xp.asarray(texture)[xp.newaxis, ...]
     frame = xp.max(frame, axis=0)
-    frame *= p.frame_brightness
+    frame *= 40  # p.frame_brightness
+    if p.textured:
+        frame *= texture
 
     if p.inelastic_scatter_sigma > 0.:
         gauss_frame = ndimage.gaussian_filter(frame, sigma=p.inelastic_scatter_sigma)
@@ -417,6 +431,6 @@ def build_frame(
             .astype(int)
             .reshape(frame.shape)
         )
-    if p.multiplicative_noise_scale:
+    if p.multiplicative_noise_scale > 0.:
         frame = xp.random.poisson(frame * p.multiplicative_noise_scale)
     return xp.round(frame[buffer: -buffer, buffer: -buffer]).astype(int)
