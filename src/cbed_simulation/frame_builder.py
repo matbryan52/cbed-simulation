@@ -279,6 +279,26 @@ class FrameParameters(NamedTuple):
     additive_noise_scale: float = 0.1
     multiplicative_noise_scale: float = 0.
 
+    def generate_disk(self, r, minor, orientation, xp=np, ndimage=ndimage):
+        disk_blur_sigma = self.disk_blur_sigma
+        if minor is not None:
+            bounding_r = max(r, minor)
+        else:
+            bounding_r = r
+        cropped_size = 2 * bounding_r + 2
+        if disk_blur_sigma > 0:
+            cropped_size += 2 * 3 * disk_blur_sigma
+        cropped_size = int(xp.ceil(cropped_size))
+        # Make base frame
+        cy = cx = cropped_size // 2
+        base_frame = xp.array(draw_ellipse(
+            (cropped_size, cropped_size), cy, cx, r, 1, minor, orientation
+        ))
+
+        if disk_blur_sigma > 0:
+            base_frame = ndimage.gaussian_filter(base_frame, sigma=disk_blur_sigma)
+        return base_frame
+
     def texture(self, frame_shape, xp=np):
         h, w = frame_shape
         scale = max(1, max(h, w) // self.texture_period)
@@ -351,23 +371,8 @@ def build_frame(
         texture = p.texture(frame.shape, xp=xp)
         assert texture.shape == frame.shape
 
-    if minor is not None:
-        bounding_r = max(r, minor)
-    else:
-        bounding_r = r
-    cropped_size = 2 * bounding_r + 2
-    if p.disk_blur_sigma > 0:
-        cropped_size += 2 * 3 * p.disk_blur_sigma
-    cropped_size = int(xp.ceil(cropped_size))
-    # Make base frame
-    cy = cx = cropped_size // 2
-    base_centre = complex(cx, cy)
-    base_frame = xp.array(draw_ellipse(
-        (cropped_size, cropped_size), cy, cx, r, 1, minor, orientation
-    ))
-
-    if p.disk_blur_sigma > 0:
-        base_frame = ndimage.gaussian_filter(base_frame, sigma=p.disk_blur_sigma)
+    base_frame = p.generate_disk(r, minor, orientation, xp=xp, ndimage=ndimage)
+    base_centre = complex(*(np.asarray(base_frame.shape) // 2))
     base_frame = xp.fft.fft2(xp.asarray(base_frame.copy()))
 
     # Make the radius / extinction map
