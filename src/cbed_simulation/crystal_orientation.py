@@ -454,6 +454,7 @@ class OrientedPhase(NamedTuple):
         self,
         experiment: ExperimentInformation,
         sim_peaks: SimulatedPeaks,
+        *,
         distortions: DistortionConfig = DistortionConfig(),
         frame_params: FrameParameters = FrameParameters(),
         backend: Literal["cupy", "cpu"] | types.ModuleType = "cpu",
