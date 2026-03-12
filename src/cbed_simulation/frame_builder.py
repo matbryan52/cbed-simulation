@@ -279,6 +279,41 @@ class FrameParameters(NamedTuple):
     additive_noise_scale: float = 0.1
     multiplicative_noise_scale: float = 0.
 
+    def texture(self, frame_shape, xp=np):
+        h, w = frame_shape
+        scale = max(1, max(h, w) // self.texture_period)
+        texture = gen_noise(frame_shape, scale=scale, xp=xp)
+        texture *= self.texture_strength
+        texture += 1.
+        texture = xp.clip(texture, 0., 2.)
+        return xp.asarray(texture)
+
+    def inelastic_scatter(self, frame, xp=np, ndimage=ndimage):
+        sigma = self.inelastic_scatter_sigma
+        if sigma <= 0.:
+            return
+
+        gauss_frame = ndimage.gaussian_filter(frame, sigma=sigma)
+        noise = xp.random.poisson(xp.clip(gauss_frame.ravel(), 0.001, xp.inf))
+        frame += noise.reshape(frame.shape)
+
+    def additive_noise(self, frame, radius: np.ndarray, xp=np):
+        scale = self.additive_noise_scale
+        if scale <= 0.:
+            return
+
+        frame += (
+            xp.random.poisson(
+                (radius ** 2) * frame.max() * scale,
+            )
+            .astype(frame.dtype)
+            .reshape(frame.shape)
+        )
+
+    def multiplicative_noise(self, frame, xp=np):
+        if self.multiplicative_noise_scale > 0.:
+            frame = xp.random.poisson(frame * self.multiplicative_noise_scale)
+
 
 def build_frame(
     frame_shape: tuple[int, int],
@@ -311,18 +346,10 @@ def build_frame(
     frame = xp.zeros(
         (h + 2 * buffer, w + 2 * buffer)
     ).astype(dtype=xp.float32)
+
     if p.textured:
-        scale = max(1, max(h, w) // p.texture_period)
-        texture = gen_noise(frame_shape, scale=scale, xp=xp)
-        texture *= p.texture_strength
-        texture += 1.
-        texture = xp.clip(texture, 0., 2.)
-        texture = xp.pad(
-            texture,
-            ((buffer, buffer), (buffer, buffer))
-        )
+        texture = p.texture(frame.shape, xp=xp)
         assert texture.shape == frame.shape
-        texture = xp.asarray(texture)
 
     if minor is not None:
         bounding_r = max(r, minor)
@@ -419,18 +446,8 @@ def build_frame(
     if p.textured:
         frame *= texture
 
-    if p.inelastic_scatter_sigma > 0.:
-        gauss_frame = ndimage.gaussian_filter(frame, sigma=p.inelastic_scatter_sigma)
-        noise = xp.random.poisson(xp.clip(gauss_frame.ravel(), 0.001, xp.inf))
-        frame += noise.reshape(frame.shape)
-    if p.additive_noise_scale > 0.:
-        frame += (
-            xp.random.poisson(
-                (radius ** 2) * frame.max() * p.additive_noise_scale,
-            )
-            .astype(int)
-            .reshape(frame.shape)
-        )
-    if p.multiplicative_noise_scale > 0.:
-        frame = xp.random.poisson(frame * p.multiplicative_noise_scale)
+    p.inelastic_scatter(frame, xp=xp, ndimage=ndimage)
+    p.additive_noise(frame, radius, xp=xp)
+    p.multiplicative_noise(frame, xp=xp)
+
     return xp.round(frame[buffer: -buffer, buffer: -buffer]).astype(int)
