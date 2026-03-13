@@ -271,7 +271,7 @@ class FrameParameters(NamedTuple):
     # current in the transmitted beam
     current_pa: float = 100
     exposure_time_ms: float = 1
-    saturation_level: int = 1024
+    saturation_level: int | None = None
     #
     intensity_raw_power: float = 3
     intensity_from_radius: bool = False
@@ -282,6 +282,7 @@ class FrameParameters(NamedTuple):
     texture_strength: float = 0.5
     # the default blur value effectively anti-aliases
     # the disk without changing the radius more than 1 px
+    poisson_frame: bool = True
     disk_blur_sigma: float = 0.5
     inelastic_scatter_sigma: float = 5.
     additive_noise_scale: float = 0.05
@@ -467,7 +468,8 @@ def build_frame(
         frame *= texture
 
     p.inelastic_scatter(frame, xp=xp, ndimage=ndimage)
-    frame[:] = xp.random.poisson(frame)
+    if p.poisson_frame:
+        frame[:] = xp.random.poisson(frame)
     p.additive_noise(frame, radius, xp=xp)
     p.psf(frame, xp, ndimage)
     xp.clip(frame, 0, p.saturation_level, out=frame)
