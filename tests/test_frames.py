@@ -23,11 +23,13 @@ def test_fwhm(radius, blur_sigma):
         pattern_scale_factor=200.,  # pixels / Å-1
     )
     frame_params = FrameParameters(
+        intensity_from_radius=True,
         textured=False,
+        poisson_frame=False,
         disk_blur_sigma=blur_sigma,
         inelastic_scatter_sigma=0.,
         additive_noise_scale=0.,
-        intensity_from_radius=True,
+        psf_sigma=0.,
     )
     peaks = IndexedPeaks(
         experiment.transmitted_centre_px,
@@ -45,7 +47,9 @@ def test_fwhm(radius, blur_sigma):
         intensities=peaks.weights,
         params=frame_params,
     )
-    signal = frame[int(experiment.transmitted_centre_px.imag), :]
+    signal = frame[int(experiment.transmitted_centre_px.imag), :].copy()
+    signal = np.floor(signal)
+    signal /= signal.max()
     fwhm, _, _, _ = peak_widths(signal, (int(experiment.transmitted_centre_px.real),))
     assert_allclose(fwhm, radius * 2, rtol=0.01, atol=1.)
 
@@ -72,11 +76,13 @@ def test_offset_position(frame_shape, radius, centre, offset):
         pattern_scale_factor=200.,  # pixels / Å-1
     )
     frame_params = FrameParameters(
+        intensity_from_radius=True,
         textured=False,
+        poisson_frame=False,
         disk_blur_sigma=0.5,
         inelastic_scatter_sigma=0.,
         additive_noise_scale=0.,
-        intensity_from_radius=True,
+        psf_sigma=0.,
     )
     peaks = IndexedPeaks(
         experiment.transmitted_centre_px,
