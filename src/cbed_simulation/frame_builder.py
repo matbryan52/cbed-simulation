@@ -268,20 +268,49 @@ def g1g2_pattern(frame_shape, g1, g2):
 
 
 class FrameParameters(NamedTuple):
-    # current in the transmitted beam
+    """
+    Args:
+      current_pa:
+        the current (counts / s) in the transmitted beam, in pA
+      exposure_time_ms:
+        the effective exposure time (used with `current_pa`)
+      saturation_level:
+        number of counts / pixel at which to clip intensity, infinite if `None`
+      intensity_raw_power:
+        normalised spot intensity values are raised to `1 / intensity_raw_power`
+      intensity_from_radius:
+        ignore provided intensity values and scale intensity with radius
+      intensity_radius_power:
+        when `intensity_from_radius==True`, radii are raised to `1 / intensity_radius_power`
+      textured:
+        if `True`, apply a random texture to spots to emulate dynamical diffraction
+      texture_period:
+        if `texture`, governs the size of an undulation in the texture in px
+      texture_strength:
+        if `texture`, governs how strongly the texture modifies the spots
+      poisson_frame:
+        if `True`, sample the frame intensity using a Poisson distribution, else
+        use the expection λ (computed from `current_pa`) directly as the
+        spot intensity scale
+      disk_blur_sigma:
+        Gaussian blur applied to each spot as anti-aliasing
+      inelastic_scatter_sigma:
+        long-range Gaussian blur around each spot merged with the frame to
+        emmulate inelastic scattering of electrons
+      additive_noise_scale:
+        an additional Poisson-noise background scaling with radius
+      psf_sigma:
+        a small Gaussian blur applied to the final frame to emulate a PSF
+    """
     current_pa: float = 100
     exposure_time_ms: float = 1
     saturation_level: int | None = None
-    #
     intensity_raw_power: float = 3
     intensity_from_radius: bool = False
     intensity_radius_power: float = 4
-    #
     textured: bool = True
     texture_period: float = 8
     texture_strength: float = 0.5
-    # the default blur value effectively anti-aliases
-    # the disk without changing the radius more than 1 px
     poisson_frame: bool = True
     disk_blur_sigma: float = 0.5
     inelastic_scatter_sigma: float = 5.
