@@ -3,6 +3,7 @@ import warnings
 
 import numpy as np
 import scipy.ndimage as ndimage
+from scipy.constants import elementary_charge
 from skimage.draw import ellipse
 
 from .utils import to_numpy
@@ -267,17 +268,24 @@ def g1g2_pattern(frame_shape, g1, g2):
 
 
 class FrameParameters(NamedTuple):
+    # current in the transmitted beam
+    current_pa: float = 100
+    exposure_time_ms: float = 1
+    saturation_level: int = 1024
+    #
+    intensity_raw_power: float = 3
     intensity_from_radius: bool = False
-    intensity_radius_power: float = 18.
+    intensity_radius_power: float = 4
+    #
     textured: bool = True
     texture_period: float = 8
     texture_strength: float = 0.5
     # the default blur value effectively anti-aliases
     # the disk without changing the radius more than 1 px
     disk_blur_sigma: float = 0.5
-    inelastic_scatter_sigma: float = 4.
-    additive_noise_scale: float = 0.1
-    multiplicative_noise_scale: float = 0.
+    inelastic_scatter_sigma: float = 5.
+    additive_noise_scale: float = 0.05
+    psf_sigma: float = 0.5
 
     def generate_disk(self, r, minor, orientation, xp=np, ndimage=ndimage):
         disk_blur_sigma = self.disk_blur_sigma
@@ -314,8 +322,8 @@ class FrameParameters(NamedTuple):
             return
 
         gauss_frame = ndimage.gaussian_filter(frame, sigma=sigma)
-        noise = xp.random.poisson(xp.clip(gauss_frame.ravel(), 0.001, xp.inf))
-        frame += noise.reshape(frame.shape)
+        frame += gauss_frame
+        frame /= 2
 
     def additive_noise(self, frame, radius: np.ndarray, xp=np):
         scale = self.additive_noise_scale
@@ -330,9 +338,11 @@ class FrameParameters(NamedTuple):
             .reshape(frame.shape)
         )
 
-    def multiplicative_noise(self, frame, xp=np):
-        if self.multiplicative_noise_scale > 0.:
-            frame = xp.random.poisson(frame * self.multiplicative_noise_scale)
+    def psf(self, frame, xp=np, ndimage=ndimage):
+        sigma = self.psf_sigma
+        if sigma <= 0.:
+            return
+        frame[:] = ndimage.gaussian_filter(frame, sigma=sigma)
 
 
 def build_frame(
@@ -398,6 +408,7 @@ def build_frame(
     if intensities is not None:
         intensities = intensities.copy()
         intensities /= intensities.max()
+        intensities **= (1 / p.intensity_raw_power)
     else:
         assert p.intensity_from_radius, "Must supply intensities or set intensity_from_radius"
 
@@ -446,13 +457,18 @@ def build_frame(
         target, source = to_slices(target_tup, offsets)
         frame[i][target] = subpixel_frame[i][source]
 
+    tbeam_electrons = p.exposure_time_ms * 1e-3 * p.current_pa * 1e-12 / elementary_charge
+    beam_area = np.pi * (r ** 2)
+    counts_per_px = tbeam_electrons / beam_area
+
     frame = xp.max(frame, axis=0)
-    frame *= 40  # p.frame_brightness
+    frame *= counts_per_px
     if p.textured:
         frame *= texture
 
     p.inelastic_scatter(frame, xp=xp, ndimage=ndimage)
+    frame[:] = xp.random.poisson(frame)
     p.additive_noise(frame, radius, xp=xp)
-    p.multiplicative_noise(frame, xp=xp)
-
-    return xp.round(frame[buffer: -buffer, buffer: -buffer]).astype(int)
+    p.psf(frame, xp, ndimage)
+    xp.clip(frame, 0, p.saturation_level, out=frame)
+    return frame[buffer: -buffer, buffer: -buffer]
