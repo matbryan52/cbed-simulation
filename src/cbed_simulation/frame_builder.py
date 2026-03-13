@@ -273,7 +273,7 @@ class FrameParameters(NamedTuple):
       current_pa:
         the current (counts / s) in the transmitted beam, in pA
       exposure_time_ms:
-        the effective exposure time (used with `current_pa`)
+        the effective exposure time (used with `current_pa`), in ms
       saturation_level:
         number of counts / pixel at which to clip intensity, infinite if `None`
       intensity_raw_power:
@@ -314,7 +314,7 @@ class FrameParameters(NamedTuple):
     poisson_frame: bool = True
     disk_blur_sigma: float = 0.5
     inelastic_scatter_sigma: float = 5.
-    additive_noise_scale: float = 0.05
+    additive_noise_scale: float = 0.1
     psf_sigma: float = 0.5
 
     def generate_disk(self, r, minor, orientation, xp=np, ndimage=ndimage):
