@@ -8,3 +8,5 @@ shot noise, saturation, texture, ...) can be influenced using a small number of
 parameters.
 
 Basic usage in [make_frame.ipynb](https://github.com/matbryan52/cbed-simulation/blob/main/make_frame.ipynb).
+
+Generation of 4D-STEM datasets in [generate-dataset.ipynb](https://github.com/matbryan52/cbed-simulation/blob/main/generate-dataset.ipynb).
