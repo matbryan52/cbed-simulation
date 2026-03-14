@@ -54,7 +54,8 @@ def template_from_vacuum(
     cyx: tuple[float, float],
     r_estimate: float,
     beam_rescale_factor: float = 0.95,
-    edge_rescale_factor: float = 1.025,
+    edge_rescale_factor: float | None = 1.025,
+    edge_strength: float = 1.,
     clip_max_frac: float = 0.5,
     sigmoid_taper_frac: float = 1.5,
 ):
@@ -68,7 +69,6 @@ def template_from_vacuum(
         vac_frame, 0., clip_max_frac * max_val,
     )
     vac_frame /= vac_frame.max()
-    # ...
     orig_com = center_of_mass(vac_frame)
 
     if beam_rescale_factor != 1.:
@@ -80,17 +80,18 @@ def template_from_vacuum(
         left, right = crop_or_insert(vac_frame.shape, shifted_rescaled.shape)
         vac_frame[left] = shifted_rescaled[right]
 
-    orig_com = center_of_mass(vac_frame)
-
-    rescaled_frame = rescale(vac_frame, edge_rescale_factor)
-    rescaled_com = center_of_mass(rescaled_frame)
-    edge_map = sobel(rescaled_frame)
-    shifted_edge_map = fourier_shift_img(
-        edge_map, np.asarray(orig_com) - np.asarray(rescaled_com),
-    )
     template = vac_frame.copy()
-    left, right = crop_or_insert(template.shape, shifted_edge_map.shape)
-    template[left] -= shifted_edge_map[right]
+
+    if edge_rescale_factor is not None:
+        orig_com = center_of_mass(vac_frame)
+        rescaled_frame = rescale(vac_frame, edge_rescale_factor)
+        rescaled_com = center_of_mass(rescaled_frame)
+        edge_map = sobel(rescaled_frame)
+        shifted_edge_map = fourier_shift_img(
+            edge_map, np.asarray(orig_com) - np.asarray(rescaled_com),
+        )
+        left, right = crop_or_insert(template.shape, shifted_edge_map.shape)
+        template[left] -= (edge_strength * shifted_edge_map[right])
     return template
 
 
@@ -100,4 +101,25 @@ def shift_probe(template, cyx: tuple[float, float], shifted: Literal["fourier", 
     cy, cx = cyx
     return get_shifted_ar(
         template, -cy, -cx, bilinear=shifted.lower() == "bilinear",
+    )
+
+
+def com_crop(frame: np.ndarray, size: int):
+    cy, cx = np.round(
+        center_of_mass(frame - frame.min())
+    ).astype(int)
+    hsize = size // 2
+    return np.s_[
+        cy - hsize: cy + hsize + 1,
+        cx - hsize: cx + hsize + 1,
+    ]
+
+
+def subpixel_com_crop(template: np.ndarray, size: int):
+    crop = com_crop(template, size)
+    crop = template[crop]
+    h2, w2 = (crop.shape[0] - 1) / 2., (crop.shape[1] - 1) / 2.
+    cy, cx = center_of_mass(crop - crop.min())
+    return fourier_shift_img(
+        crop, (h2 - cy, w2 - cx),
     )
