@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from orix.quaternion import Rotation
 import libertem.api as lt
 from libertem.udf.base import UDF
 from libertem.common.math import prod
@@ -91,9 +92,12 @@ class CBEDSimUDF(UDF):
         p = self.params
         phase: OrientedPhase = p.phase
         if p.orientation is not None:
-            phase = phase.with_rot(
-                p.orientation,
-            )
+            rot = p.orientation
+            if rot.size == 5:
+                improper = rot[4]
+                rot = Rotation(p.orientation[:4])
+                rot.improper = improper
+            phase = phase.with_rot(rot)
         if isinstance(p.lattice_mod, LatticeMultipliers):
             lattice_mod = p.lattice_mod
         else:
@@ -132,7 +136,7 @@ def build_udf_ds(
     phase: OrientedPhase,
     experiment: ExperimentInformation,
     frame_parameters: FrameParameters,
-    orientation: tuple[float, float, float] | np.ndarray | None = None,
+    orientation: Rotation | np.ndarray | None = None,
     lattice_mod: LatticeMultipliers | np.ndarray = None,
     max_excitation_error=None,
     dynamic_diff: bool = False,
@@ -149,13 +153,17 @@ def build_udf_ds(
     else:
         raise ValueError("Unsupported lattice_mod type")
     # NOTE initial orientation of phase will be ignored
-    if orientation is not None:
-        orientation = np.asarray(orientation)
-        if orientation.size != 3:
-            assert orientation.shape == nav_shape + (3,), "orientation incompatible with aux_data"
-            orientation = CBEDSimUDF.aux_data(
-                orientation.ravel(), kind="nav", extra_shape=(3,)
-            )
+    if isinstance(orientation, Rotation):
+        # Rotation._data has 5 values per-rotation, 4 for the Quaternion, 1 for improper flag
+        orientation = CBEDSimUDF.aux_data(
+            orientation._data.ravel(), kind="nav", extra_shape=(5,), dtype=orientation._data.dtype,
+        )
+    elif isinstance(orientation, np.ndarray):
+        # This path assumes Euler angles in degres
+        assert orientation.shape == nav_shape + (3,), "orientation incompatible with aux_data"
+        orientation = CBEDSimUDF.aux_data(
+            orientation.ravel(), kind="nav", extra_shape=(3,), dtype=orientation.dtype,
+        )
     udf = CBEDSimUDF(
         out_path,
         experiment,
