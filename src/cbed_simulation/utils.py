@@ -50,6 +50,10 @@ def to_array(complex_array, xp=np):
     )
 
 
+def scale_and_rotate(offsets, scale: float, rotation: float):
+    return offsets * scale * np.exp(1j * np.deg2rad(rotation))
+
+
 def to_miller_ltx(h: int, k: int, l: int):  # noqa
     _to_miller = lambda v: f"{v}" if v >= 0 else "\\bar{" + f"{abs(v)}" + "}"  # noqa
     return f"${_to_miller(h)}{_to_miller(k)}{_to_miller(l)}$"

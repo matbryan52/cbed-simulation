@@ -3,6 +3,7 @@ import warnings
 
 import numpy as np
 import scipy.ndimage as ndimage
+from scipy.constants import elementary_charge
 from skimage.draw import ellipse
 
 from .utils import to_numpy
@@ -202,14 +203,18 @@ def fourier_shift(image_fft: np.ndarray, shift: np.ndarray, out=None, xp=np):
     return out
 
 
-def gen_noise(shape, scale=None, xp=np):
+def gen_noise(shape: tuple[int, int], scale: int | None = None, xp=np):
+    """
+    Noise is distributed between -1..1
+    """
     if scale is None:
-        scale = min(shape)
+        scale = max(1, min(shape) // 8)
     true_shape = tuple(s + (scale - (s % scale)) for s in shape)
     noise = generate_perlin_noise_2d(true_shape, (scale, scale), xp=xp)
     noise -= noise.min()
     noise /= noise.max()
-    noise += 1
+    noise -= 0.5
+    noise *= 2
     return noise[:shape[0], :shape[1]]
 
 
@@ -263,17 +268,111 @@ def g1g2_pattern(frame_shape, g1, g2):
 
 
 class FrameParameters(NamedTuple):
-    disk_brightness: float = 1.
-    # the default blur value effectively anti-aliases
-    # the disk without changing the radius more than 1 px
-    disk_blur_sigma: float = 0.5
+    """
+    Args:
+      current_pa:
+        the current (counts / s) in the transmitted beam, in pA
+      exposure_time_ms:
+        the effective exposure time (used with `current_pa`), in ms
+      saturation_level:
+        number of counts / pixel at which to clip intensity, infinite if `None`
+      intensity_raw_power:
+        normalised spot intensity values are raised to `1 / intensity_raw_power`
+      intensity_from_radius:
+        ignore provided intensity values and scale intensity with radius
+      intensity_radius_power:
+        when `intensity_from_radius==True`, radii are raised to `1 / intensity_radius_power`
+      textured:
+        if `True`, apply a random texture to spots to emulate dynamical diffraction
+      texture_period:
+        if `texture`, governs the size of an undulation in the texture in px
+      texture_strength:
+        if `texture`, governs how strongly the texture modifies the spots
+      poisson_frame:
+        if `True`, sample the frame intensity using a Poisson distribution, else
+        use the expection λ (computed from `current_pa`) directly as the
+        spot intensity scale
+      disk_blur_sigma:
+        Gaussian blur applied to each spot as anti-aliasing
+      inelastic_scatter_sigma:
+        long-range Gaussian blur around each spot merged with the frame to
+        emmulate inelastic scattering of electrons
+      additive_noise_scale:
+        an additional Poisson-noise background scaling with radius
+      psf_sigma:
+        a small Gaussian blur applied to the final frame to emulate a PSF
+    """
+    current_pa: float = 100
+    exposure_time_ms: float = 1
+    saturation_level: int | None = None
+    intensity_raw_power: float = 3
     intensity_from_radius: bool = False
-    intensity_falloff_power: float = 4.
+    intensity_radius_power: float = 4
     textured: bool = True
-    frame_brightness: float = 40.
-    inelastic_scatter_sigma: float = 4.
+    texture_period: float = 8
+    texture_strength: float = 0.5
+    poisson_frame: bool = True
+    disk_blur_sigma: float = 0.5
+    inelastic_scatter_sigma: float = 5.
     additive_noise_scale: float = 0.1
-    multiplicative_noise_scale: float = 0.
+    psf_sigma: float = 0.5
+
+    def generate_disk(self, r, minor, orientation, xp=np, ndimage=ndimage):
+        disk_blur_sigma = self.disk_blur_sigma
+        if minor is not None:
+            bounding_r = max(r, minor)
+        else:
+            bounding_r = r
+        cropped_size = 2 * bounding_r + 2
+        if disk_blur_sigma > 0:
+            cropped_size += 2 * 3 * disk_blur_sigma
+        cropped_size = int(xp.ceil(cropped_size))
+        # Make base frame
+        cy = cx = cropped_size // 2
+        base_frame = xp.array(draw_ellipse(
+            (cropped_size, cropped_size), cy, cx, r, 1, minor, orientation
+        ))
+
+        if disk_blur_sigma > 0:
+            base_frame = ndimage.gaussian_filter(base_frame, sigma=disk_blur_sigma)
+        return base_frame
+
+    def texture(self, frame_shape, xp=np):
+        h, w = frame_shape
+        scale = max(1, max(h, w) // self.texture_period)
+        texture = gen_noise(frame_shape, scale=scale, xp=xp)
+        texture *= self.texture_strength
+        texture += 1.
+        texture = xp.clip(texture, 0., 2.)
+        return xp.asarray(texture)
+
+    def inelastic_scatter(self, frame, xp=np, ndimage=ndimage):
+        sigma = self.inelastic_scatter_sigma
+        if sigma <= 0.:
+            return
+
+        gauss_frame = ndimage.gaussian_filter(frame, sigma=sigma)
+        frame += gauss_frame
+        frame /= 2
+
+    def additive_noise(self, frame, radius: np.ndarray, xp=np):
+        scale = self.additive_noise_scale
+        if scale <= 0.:
+            return
+
+        frame += (
+            xp.random.poisson(
+                (radius ** 2) * frame.max() * scale,
+            )
+            .astype(frame.dtype)
+            .reshape(frame.shape)
+        )
+
+    def psf(self, frame, xp=np, ndimage=ndimage):
+        sigma = self.psf_sigma
+        if sigma <= 0.:
+            return
+        frame[:] = ndimage.gaussian_filter(frame, sigma=sigma)
 
 
 def build_frame(
@@ -304,34 +403,16 @@ def build_frame(
     assert centre.imag == int(centre.imag), "centre position must be integer"
     expanded_centre = centre + complex(buffer, buffer)
 
-    frame = np.zeros(
+    frame = xp.zeros(
         (h + 2 * buffer, w + 2 * buffer)
-    ).astype(dtype=np.float32)
+    ).astype(dtype=xp.float32)
+
     if p.textured:
-        texture = gen_noise(frame_shape, xp=xp)
-        texture = xp.pad(
-            texture,
-            ((buffer, buffer), (buffer, buffer))
-        )
+        texture = p.texture(frame.shape, xp=xp)
         assert texture.shape == frame.shape
 
-    if minor is not None:
-        bounding_r = max(r, minor)
-    else:
-        bounding_r = r
-    cropped_size = 2 * bounding_r + 2
-    if p.disk_blur_sigma > 0:
-        cropped_size += 2 * 3 * p.disk_blur_sigma
-    cropped_size = int(xp.ceil(cropped_size))
-    # Make base frame
-    cy = cx = cropped_size // 2
-    base_centre = complex(cx, cy)
-    base_frame = xp.array(draw_ellipse(
-        (cropped_size, cropped_size), cy, cx, r, p.disk_brightness, minor, orientation
-    ))
-
-    if p.disk_blur_sigma > 0:
-        base_frame = ndimage.gaussian_filter(base_frame, sigma=p.disk_blur_sigma)
+    base_frame = p.generate_disk(r, minor, orientation, xp=xp, ndimage=ndimage)
+    base_centre = complex(*(np.asarray(base_frame.shape) // 2))
     base_frame = xp.fft.fft2(xp.asarray(base_frame.copy()))
 
     # Make the radius / extinction map
@@ -348,17 +429,21 @@ def build_frame(
         ),
         axis=0,
     )
-    max_r = min(h, w) / 2.
-    radius /= max_r
+
+    radius /= radius.max()
     radius -= radius.max()
     radius *= -1
+    radius /= radius.max()
 
-    if intensities is None or p.intensity_from_radius:
-        radius_adjusted = radius.copy()
-        radius_adjusted **= p.intensity_falloff_power
-    else:
+    if intensities is not None:
         intensities = intensities.copy()
         intensities /= intensities.max()
+        intensities **= (1 / p.intensity_raw_power)
+    else:
+        assert p.intensity_from_radius, "Must supply intensities or set intensity_from_radius"
+
+    intensity_radius = radius.copy()
+    intensity_radius **= p.intensity_radius_power
 
     valid_shifts = []
     valid_intensities = []
@@ -371,8 +456,8 @@ def build_frame(
 
         this_shift = real_pos - base_centre
         valid_shifts.append((this_shift.imag, this_shift.real))
-        if intensities is None or p.intensity_from_radius:
-            intensity = radius_adjusted[int(round(real_pos.imag)), int(round(real_pos.real))]
+        if p.intensity_from_radius:
+            intensity = intensity_radius[int(round(real_pos.imag)), int(round(real_pos.real))]
         valid_intensities.append(intensity)
 
     valid_shifts = xp.asarray(valid_shifts)
@@ -402,23 +487,19 @@ def build_frame(
         target, source = to_slices(target_tup, offsets)
         frame[i][target] = subpixel_frame[i][source]
 
-    if p.textured:
-        frame *= xp.asarray(texture)[xp.newaxis, ...]
-    frame = xp.max(frame, axis=0)
-    frame *= p.frame_brightness
+    tbeam_electrons = p.exposure_time_ms * 1e-3 * p.current_pa * 1e-12 / elementary_charge
+    beam_area = np.pi * (r ** 2)
+    counts_per_px = tbeam_electrons / beam_area
 
-    if p.inelastic_scatter_sigma > 0.:
-        gauss_frame = ndimage.gaussian_filter(frame, sigma=p.inelastic_scatter_sigma)
-        noise = xp.random.poisson(xp.clip(gauss_frame.ravel(), 0.001, xp.inf))
-        frame += noise.reshape(frame.shape)
-    if p.additive_noise_scale > 0.:
-        frame += (
-            xp.random.poisson(
-                (radius ** 2) * frame.max() * p.additive_noise_scale,
-            )
-            .astype(int)
-            .reshape(frame.shape)
-        )
-    if p.multiplicative_noise_scale:
-        frame = xp.random.poisson(frame * p.multiplicative_noise_scale)
-    return xp.round(frame[buffer: -buffer, buffer: -buffer]).astype(int)
+    frame = xp.max(frame, axis=0)
+    frame *= counts_per_px
+    if p.textured:
+        frame *= texture
+
+    p.inelastic_scatter(frame, xp=xp, ndimage=ndimage)
+    if p.poisson_frame:
+        frame[:] = xp.random.poisson(frame)
+    p.additive_noise(frame, radius, xp=xp)
+    p.psf(frame, xp, ndimage)
+    xp.clip(frame, 0, p.saturation_level, out=frame)
+    return frame[buffer: -buffer, buffer: -buffer]

@@ -1,38 +1,10 @@
-import os
-
 import numpy as np
 
-from diffsims.generators.zap_map_generator import get_rotation_from_z_to_direction
-from orix.vector.miller import Miller
 from orix.quaternion.rotation import Rotation
-from orix.crystal_map import Phase
-from diffpy.structure.parsers.p_cif import P_cif
 
 from ase import Atoms
 from abtem.bloch import BlochWaves, StructureFactor
 from abtem.measurements import IndexedDiffractionPatterns
-
-
-def rotation_for_hkl(cif_path: os.PathLike, hkl: tuple[int, int, int]):
-    with open(cif_path, 'r') as fp:
-        cif_str = fp.read()
-    cif = P_cif()
-    structure = cif.parse(cif_str)
-    spacegroup = cif.spacegroup
-    phase = Phase(
-        cif_path.stem,
-        space_group=spacegroup,
-        structure=structure,
-    )
-    miller = Miller(hkl=hkl, phase=phase)
-    euler = get_rotation_from_z_to_direction(
-        structure,
-        miller.uvw.squeeze(),
-    )
-    return Rotation.from_euler(
-        euler,
-        degrees=True,
-    )
 
 
 def get_bloch_pattern(
@@ -98,7 +70,3 @@ def unpack_pattern(
         tuple(bloch_intensity_dict.values())
     )
     return hkls, spots, intensities
-
-
-def scale_and_rotate(offsets, scale: float, rotation: float):
-    return offsets * scale * np.exp(1j * np.deg2rad(rotation))
