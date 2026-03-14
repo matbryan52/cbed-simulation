@@ -110,8 +110,8 @@ def com_crop(frame: np.ndarray, size: int):
     ).astype(int)
     hsize = size // 2
     return np.s_[
-        cy - hsize: cy + hsize + 1,
-        cx - hsize: cx + hsize + 1,
+        cy - hsize: cy + hsize,
+        cx - hsize: cx + hsize,
     ]
 
 
