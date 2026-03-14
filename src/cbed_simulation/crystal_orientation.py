@@ -100,6 +100,10 @@ class ExperimentInformation(NamedTuple):
         params.update(kwargs)
         return type(self)(**params)
 
+    @property
+    def cyx(self):
+        return self.transmitted_centre_px.imag, self.transmitted_centre_px.real
+
     @classmethod
     def default(cls):
         return cls(
