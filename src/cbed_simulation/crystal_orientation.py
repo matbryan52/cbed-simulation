@@ -73,6 +73,14 @@ class ExperimentInformation(NamedTuple):
     precession_angle: float = 1.
     debye_waller_factors: dict | None = None
 
+    @classmethod
+    def default(cls):
+        return cls(
+            frame_shape=(512, 512),
+            pattern_scale_factor=120,
+            radius_px=12,
+        )
+
     @property
     def max_extent(self) -> float:
         br = complex(*self.frame_shape[::-1])
@@ -109,14 +117,6 @@ class ExperimentInformation(NamedTuple):
     @property
     def cyx(self):
         return self.transmitted_centre_px.imag, self.transmitted_centre_px.real
-
-    @classmethod
-    def default(cls):
-        return cls(
-            frame_shape=(512, 512),
-            pattern_scale_factor=120,
-            radius_px=12,
-        )
 
 
 class IndexedPeaks(NamedTuple):
