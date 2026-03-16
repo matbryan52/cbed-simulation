@@ -64,12 +64,11 @@ class GVecs(NamedTuple):
 
 class ExperimentInformation(NamedTuple):
     frame_shape: tuple[int, int]
-    transmitted_centre_px: complex
-    radius_px: int  # major axis
     pattern_scale_factor: float  # px / nm-1
+    radius_px: int  # spot major axis
+    centre_px: complex | None = None  # frame centre by default
     ellipse_minor: float | None = None  # radius_px is major axis
     ellipse_orientation: float = 0.  # degrees
-    pattern_rotation: float = 0.  # degrees
     voltage_kv: float = 200.
     precession_angle: float = 1.
     debye_waller_factors: dict | None = None
@@ -101,6 +100,13 @@ class ExperimentInformation(NamedTuple):
         return type(self)(**params)
 
     @property
+    def transmitted_centre_px(self):
+        if self.centre_px is None:
+            hh, ww = self.frame_shape
+            return complex(hh / 2., ww / 2.)
+        return self.centre_px
+
+    @property
     def cyx(self):
         return self.transmitted_centre_px.imag, self.transmitted_centre_px.real
 
@@ -108,9 +114,8 @@ class ExperimentInformation(NamedTuple):
     def default(cls):
         return cls(
             frame_shape=(512, 512),
-            transmitted_centre_px=256 + 256 * 1j,
-            radius_px=12,
             pattern_scale_factor=120,
+            radius_px=12,
         )
 
 
@@ -228,7 +233,7 @@ class SimulatedPeaks(IndexedPeaks):
         offsets = scale_and_rotate(
             self.offsets,
             experiment.pattern_scale_factor,
-            experiment.pattern_rotation,
+            0.,
         )
         contained = np.s_[:]
         if clip:

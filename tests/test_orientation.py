@@ -83,9 +83,8 @@ def test_in_plane_rotation(cif_path, in_plane, za, bloch):
     )
     experiment = ExperimentInformation(
         frame_shape=(256, 256),
-        transmitted_centre_px=complex(128, 128),
+        pattern_scale_factor=119.,
         radius_px=12,
-        pattern_scale_factor=119.
     )
     peaks = phase.peak_positions(experiment, dynamic_diff=bloch)
     peaks_rot = phase_rot.peak_positions(experiment, dynamic_diff=bloch)
@@ -121,9 +120,8 @@ def test_kinematic_dynamic_equivalent(cif_path, orientation):
     )
     experiment = ExperimentInformation(
         frame_shape=(256, 256),
-        transmitted_centre_px=complex(128, 128),
-        radius_px=12,
         pattern_scale_factor=119.,  # pixels / Å-1
+        radius_px=12,
     )
     peaks_kinematic = phase.peak_positions(experiment, dynamic_diff=False)
     peaks_dynamic = phase.peak_positions(experiment, dynamic_diff=True)
@@ -195,9 +193,8 @@ def test_py4DSTEM_orientation(plan: str, euler: EulerAngles, request):
 
     experiment = ExperimentInformation(
         frame_shape=(512, 512),
-        transmitted_centre_px=complex(256, 256),
-        radius_px=12,
         pattern_scale_factor=119.,  # pixels / Å-1
+        radius_px=12,
     )
 
     phase = OrientedPhase.from_cif(
