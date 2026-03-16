@@ -98,9 +98,9 @@ class ExperimentInformation(NamedTuple):
         semiconv = semiconv_mrad * 1e-3
         pixelsize = pixelsize_um * 1e-6
         voltage = voltage_kv * 1e3
-        lam_nm = electron_wavelength_angstrom(voltage) * 1e-1
-        pattern_scale_factor = camera_length_m * lam_nm / pixelsize  # px / nm-1
-        radius_px = np.round(semiconv * pattern_scale_factor / lam_nm).astype(int)
+        lam_a = electron_wavelength_angstrom(voltage)
+        pattern_scale_factor = camera_length_m * lam_a / pixelsize  # px / Å-1
+        radius_px = np.round(semiconv * pattern_scale_factor / lam_a).astype(int)
         return cls(
             frame_shape=frame_shape,
             pattern_scale_factor=pattern_scale_factor.item(),
@@ -112,7 +112,7 @@ class ExperimentInformation(NamedTuple):
     @property
     def max_extent(self) -> float:
         """
-        Maximum diffraction vector in nm-1
+        Maximum diffraction vector in Å-1
         """
         br = complex(*self.frame_shape[::-1])
         tr = br.real + 0j
@@ -127,10 +127,16 @@ class ExperimentInformation(NamedTuple):
 
     @property
     def pixelsize(self) -> float:
+        """
+        Pixelsize in Å-1 / px
+        """
         return 1 / self.pattern_scale_factor
 
     @property
     def spotsize(self) -> float:
+        """
+        Spot size in Å-1
+        """
         return self.radius_px * self.pixelsize
 
     def modify(self, **kwargs):
