@@ -92,7 +92,7 @@ class ExperimentInformation(NamedTuple):
             abs(tr - self.pattern_centre_px),
             abs(bl - self.pattern_centre_px),
         )
-        return dist_px / self.pattern_scale_factor
+        return dist_px * self.pixelsize
 
     @property
     def pixelsize(self) -> float:
