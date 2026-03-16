@@ -65,7 +65,7 @@ class GVecs(NamedTuple):
 
 class ExperimentInformation(NamedTuple):
     frame_shape: tuple[int, int]
-    pattern_scale_factor: float  # px / nm-1
+    pattern_scale_factor: float  # px / Å-1
     radius_px: int  # spot major axis
     centre_px: complex | None = None  # (x + i * y), frame centre by default
     ellipse_minor: float | None = None  # radius_px is major axis
