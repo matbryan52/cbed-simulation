@@ -66,7 +66,7 @@ class ExperimentInformation(NamedTuple):
     frame_shape: tuple[int, int]
     pattern_scale_factor: float  # px / nm-1
     radius_px: int  # spot major axis
-    centre_px: complex | None = None  # frame centre by default
+    centre_px: complex | None = None  # (x + i * y), frame centre by default
     ellipse_minor: float | None = None  # radius_px is major axis
     ellipse_orientation: float = 0.  # degrees
     voltage_kv: float = 200.
@@ -87,10 +87,10 @@ class ExperimentInformation(NamedTuple):
         tr = br.real + 0j
         bl = br.imag * 1j
         dist_px = max(
-            abs(self.transmitted_centre_px),
-            abs(br - self.transmitted_centre_px),
-            abs(tr - self.transmitted_centre_px),
-            abs(bl - self.transmitted_centre_px),
+            abs(self.pattern_centre_px),
+            abs(br - self.pattern_centre_px),
+            abs(tr - self.pattern_centre_px),
+            abs(bl - self.pattern_centre_px),
         )
         return dist_px / self.pattern_scale_factor
 
@@ -108,15 +108,19 @@ class ExperimentInformation(NamedTuple):
         return type(self)(**params)
 
     @property
-    def transmitted_centre_px(self):
+    def frame_centre_px(self):
+        hh, ww = self.frame_shape  # (yy, xx)
+        return complex(ww / 2., hh / 2.)  # x-real, y-imag
+
+    @property
+    def pattern_centre_px(self):
         if self.centre_px is None:
-            hh, ww = self.frame_shape
-            return complex(hh / 2., ww / 2.)
+            return self.frame_centre_px
         return self.centre_px
 
     @property
     def cyx(self):
-        return self.transmitted_centre_px.imag, self.transmitted_centre_px.real
+        return self.pattern_centre_px.imag, self.pattern_centre_px.real
 
 
 class IndexedPeaks(NamedTuple):
@@ -237,7 +241,7 @@ class SimulatedPeaks(IndexedPeaks):
         )
         contained = np.s_[:]
         if clip:
-            positions_px = experiment.transmitted_centre_px + offsets
+            positions_px = experiment.pattern_centre_px + offsets
             contained = (
                 (positions_px.real >= 0)
                 & (positions_px.real < experiment.frame_shape[1] - 1)
@@ -245,7 +249,7 @@ class SimulatedPeaks(IndexedPeaks):
                 & (positions_px.imag < experiment.frame_shape[0] - 1)
             )
         return IndexedPeaks(
-            experiment.transmitted_centre_px,
+            experiment.pattern_centre_px,
             offsets[contained],
             self.hkls[contained],
             self.weights[contained],
@@ -477,7 +481,7 @@ class OrientedPhase(NamedTuple):
         warped = apply_distortion(offsets, distortions)
         frame = build_frame(
             experiment.frame_shape,
-            experiment.transmitted_centre_px,
+            experiment.pattern_centre_px,
             warped,
             experiment.radius_px,
             minor=experiment.ellipse_minor,
