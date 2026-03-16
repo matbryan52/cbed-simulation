@@ -16,6 +16,7 @@ from .utils import (
     orientation_for_hkl,
     cif_to_phase,
     scale_and_rotate,
+    electron_wavelength_angstrom,
 )
 from .distortions import DistortionConfig, apply_distortion
 from .frame_builder import build_frame, FrameParameters
@@ -81,8 +82,38 @@ class ExperimentInformation(NamedTuple):
             radius_px=12,
         )
 
+    @classmethod
+    def from_tem_params(
+        cls,
+        camera_length_m: float,
+        semiconv_mrad: float,
+        voltage_kv: float,
+        frame_shape: tuple[int, int],
+        pixelsize_um: float,
+        **kwargs,
+    ):
+        """
+        Create ExperimentInformation from physical parameters of acquisition
+        """
+        semiconv = semiconv_mrad * 1e-3
+        pixelsize = pixelsize_um * 1e-6
+        voltage = voltage_kv * 1e3
+        lam_nm = electron_wavelength_angstrom(voltage) * 1e-1
+        pattern_scale_factor = camera_length_m * lam_nm / pixelsize  # px / nm-1
+        radius_px = np.round(semiconv * pattern_scale_factor / lam_nm).astype(int)
+        return cls(
+            frame_shape=frame_shape,
+            pattern_scale_factor=pattern_scale_factor.item(),
+            radius_px=radius_px.item(),
+            voltage_kv=voltage_kv,
+            **kwargs,
+        )
+
     @property
     def max_extent(self) -> float:
+        """
+        Maximum diffraction vector in nm-1
+        """
         br = complex(*self.frame_shape[::-1])
         tr = br.real + 0j
         bl = br.imag * 1j

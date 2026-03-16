@@ -6,6 +6,7 @@ from typing import Literal, TYPE_CHECKING
 import numpy as np
 from numpy.typing import ArrayLike
 import scipy.ndimage as ndimage
+from scipy import constants
 from diffpy.structure.parsers.p_cif import P_cif
 from orix.crystal_map import Phase
 from orix.vector import Vector3d, Miller
@@ -169,3 +170,11 @@ def cif_to_phase(cif_path: os.PathLike):
         space_group=spacegroup,
         structure=copy.deepcopy(structure),
     )
+
+
+def electron_wavelength_angstrom(E_eV: float) -> float:
+    m = constants.m_e
+    e = constants.elementary_charge
+    c = constants.c
+    h = constants.h
+    return h / np.sqrt(2 * m * e * E_eV) / np.sqrt(1 + e * E_eV / 2 / m / c**2) * 10**10
