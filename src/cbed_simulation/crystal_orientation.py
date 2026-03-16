@@ -110,6 +110,11 @@ class ExperimentInformation(NamedTuple):
         )
 
     @property
+    def semiconv_mrad(self):
+        lam_a = electron_wavelength_angstrom(self.voltage_kv * 1e3)
+        return (self.radius_px * lam_a / self.pattern_scale_factor) * 1e3
+
+    @property
     def max_extent(self) -> float:
         """
         Maximum diffraction vector in Å-1
