@@ -31,14 +31,14 @@ def test_fwhm(radius, blur_sigma):
         psf_sigma=0.,
     )
     peaks = IndexedPeaks(
-        experiment.transmitted_centre_px,
+        experiment.pattern_centre_px,
         offsets=np.asarray((complex(0, 0),)),
         hkls=np.asarray(((0, 0, 0),)),
         weights=np.asarray((1.,)),
     )
     frame = build_frame(
         experiment.frame_shape,
-        experiment.transmitted_centre_px,
+        experiment.pattern_centre_px,
         peaks.offsets,
         experiment.radius_px,
         minor=experiment.ellipse_minor,
@@ -85,14 +85,14 @@ def test_offset_position(frame_shape, radius, centre, offset):
         psf_sigma=0.,
     )
     peaks = IndexedPeaks(
-        experiment.transmitted_centre_px,
+        experiment.pattern_centre_px,
         offsets=np.asarray((offset,)),
         hkls=np.asarray(((0, 0, 0),)),
         weights=np.asarray((1.,)),
     )
     frame = build_frame(
         experiment.frame_shape,
-        experiment.transmitted_centre_px,
+        experiment.pattern_centre_px,
         peaks.offsets,
         experiment.radius_px,
         minor=experiment.ellipse_minor,
@@ -104,7 +104,7 @@ def test_offset_position(frame_shape, radius, centre, offset):
     com = center_of_mass(frame)
     assert_allclose(
         com,
-        to_array(experiment.transmitted_centre_px + offset),
+        to_array(experiment.pattern_centre_px + offset),
         rtol=0.,
         atol=0.1,  # allow 0.1 px error
     )
