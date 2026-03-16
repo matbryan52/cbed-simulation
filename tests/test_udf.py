@@ -17,9 +17,8 @@ def ctx():
 def test_udf_gen(ctx: lt.Context, tmp_path: pathlib.Path):
     experiment = ExperimentInformation(
         frame_shape=(256, 256),
-        transmitted_centre_px=complex(128, 128),
-        radius_px=12,
         pattern_scale_factor=200.,  # pixels / Å-1
+        radius_px=12,
     )
     frame_params = FrameParameters()
     phase = OrientedPhase.from_cif(ROOT_PATH / "Si.cif")

@@ -71,9 +71,8 @@ def test_ref_comparison(cif_path: os.PathLike, ref_path: os.PathLike):
 
     experiment = ExperimentInformation(
         frame_shape=(512, 512),
-        transmitted_centre_px=complex(256, 256),
-        radius_px=12,
         pattern_scale_factor=119.,  # pixels / Å-1
+        radius_px=12,
     )
 
     phase = OrientedPhase.from_cif(

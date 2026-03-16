@@ -37,7 +37,7 @@ def save_frames(frame_ref, frame_strained, savedir=pathlib.Path(".")):
 def ref_strained_crystal(cif_path, strain_val, bloch: bool = True):
     experiment = ExperimentInformation(
         frame_shape=(512, 512),
-        transmitted_centre_px=complex(240, 281),
+        centre_px=complex(240, 281),
         radius_px=12,
         pattern_scale_factor=200.,  # pixels / Å-1
     )
@@ -233,7 +233,7 @@ def test_py4DSTEM_template_match(cif_path, strain_val):
     frames = np.stack((frame_ref, frame_strained), axis=0)
     cube = py4DSTEM.DataCube(frames[np.newaxis, ...])
 
-    cyx = (experiment.transmitted_centre_px.imag, experiment.transmitted_centre_px.real)
+    cyx = experiment.cyx
     template = template_from_vacuum(frame_ref, cyx, experiment.radius_px)
     template_shifted = shift_probe(
         template, cyx, shifted="bilinear"
@@ -292,7 +292,7 @@ def test_py4DSTEM_2D_strain_framegen(cif_path, strain_val):
     frames = np.stack((frame_ref, frame_strained), axis=0)
     cube = py4DSTEM.DataCube(frames[np.newaxis, ...])
 
-    cyx = (experiment.transmitted_centre_px.imag, experiment.transmitted_centre_px.real)
+    cyx = experiment.cyx
     template = template_from_vacuum(frame_ref, cyx, experiment.radius_px)
     template_shifted = shift_probe(
         template, cyx, shifted="bilinear"
@@ -324,9 +324,7 @@ def test_py4DSTEM_2D_strain_framegen(cif_path, strain_val):
     idx_g1 = np.argwhere(min_dist_idxs == idx_g1).item()
     idx_g2 = np.argwhere(min_dist_idxs == idx_g2).item()
 
-    braggpeaks.calibration.set_origin(
-        (experiment.transmitted_centre_px.imag, experiment.transmitted_centre_px.real)
-    )
+    braggpeaks.calibration.set_origin(experiment.cyx)
     braggpeaks.setcal(center=True)
 
     ref_roi = np.arange(1, -1, -1).astype(bool).reshape(1, 2)

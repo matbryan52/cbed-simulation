@@ -21,9 +21,9 @@ def test_gpu_frame_gen():
     backend = "cupy"
     experiment = ExperimentInformation(
         frame_shape=(512, 512),
-        transmitted_centre_px=complex(240, 281),
-        radius_px=12,
         pattern_scale_factor=200.,  # pixels / Å-1
+        radius_px=12,
+        centre_px=complex(240, 281),
     )
     phase = OrientedPhase.from_cif(
         cif_path=ROOT_PATH / "Si.cif",

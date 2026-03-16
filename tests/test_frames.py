@@ -18,9 +18,8 @@ ROOT_PATH = pathlib.Path(__file__).parent
 def test_fwhm(radius, blur_sigma):
     experiment = ExperimentInformation(
         frame_shape=(256, 256),
-        transmitted_centre_px=complex(128, 128),
-        radius_px=radius,
         pattern_scale_factor=200.,  # pixels / Å-1
+        radius_px=radius,
     )
     frame_params = FrameParameters(
         intensity_from_radius=True,
@@ -47,10 +46,11 @@ def test_fwhm(radius, blur_sigma):
         intensities=peaks.weights,
         params=frame_params,
     )
-    signal = frame[int(experiment.transmitted_centre_px.imag), :].copy()
+    cy, cx = experiment.cyx
+    signal = frame[int(cy), :].copy()
     signal = np.floor(signal)
     signal /= signal.max()
-    fwhm, _, _, _ = peak_widths(signal, (int(experiment.transmitted_centre_px.real),))
+    fwhm, _, _, _ = peak_widths(signal, (int(cx),))
     assert_allclose(fwhm, radius * 2, rtol=0.01, atol=1.)
 
 
@@ -71,9 +71,9 @@ def test_fwhm(radius, blur_sigma):
 def test_offset_position(frame_shape, radius, centre, offset):
     experiment = ExperimentInformation(
         frame_shape=frame_shape,
-        transmitted_centre_px=centre,
-        radius_px=radius,
         pattern_scale_factor=200.,  # pixels / Å-1
+        radius_px=radius,
+        centre_px=centre,
     )
     frame_params = FrameParameters(
         intensity_from_radius=True,
