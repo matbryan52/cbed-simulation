@@ -109,26 +109,38 @@ class ExperimentInformation(NamedTuple):
             **kwargs,
         )
 
+    def _px_to_angle_mrad(self, radius: float):
+        lam_a = electron_wavelength_angstrom(self.voltage_kv * 1e3)
+        return (radius * lam_a / self.pattern_scale_factor) * 1e3
+
     @property
     def semiconv_mrad(self):
-        lam_a = electron_wavelength_angstrom(self.voltage_kv * 1e3)
-        return (self.radius_px * lam_a / self.pattern_scale_factor) * 1e3
+        return self._px_to_angle_mrad(self.radius_px)
+
+    def _max_distance_px(self):
+        br = complex(*self.frame_shape[::-1])
+        tr = br.real + 0j
+        bl = br.imag * 1j
+        return max(
+            abs(self.pattern_centre_px),
+            abs(br - self.pattern_centre_px),
+            abs(tr - self.pattern_centre_px),
+            abs(bl - self.pattern_centre_px),
+        )
 
     @property
     def max_extent(self) -> float:
         """
         Maximum diffraction vector in Å-1
         """
-        br = complex(*self.frame_shape[::-1])
-        tr = br.real + 0j
-        bl = br.imag * 1j
-        dist_px = max(
-            abs(self.pattern_centre_px),
-            abs(br - self.pattern_centre_px),
-            abs(tr - self.pattern_centre_px),
-            abs(bl - self.pattern_centre_px),
-        )
-        return dist_px * self.pixelsize
+        return self._max_distance_px() * self.pixelsize
+
+    @property
+    def max_angle(self) -> float:
+        """
+        Maximum diffraction angle in mrad
+        """
+        return self._px_to_angle_mrad(self._max_distance_px())
 
     @property
     def pixelsize(self) -> float:
