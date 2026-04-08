@@ -372,7 +372,7 @@ class OrientedPhase(NamedTuple):
         if zone_axis is not None:
             orientation = orientation_for_hkl(
                 phase, zone_axis,
-            )
+            ).inv()
         elif isinstance(orientation, (list, tuple, np.ndarray)):
             orientation = Rotation.from_euler(
                 orientation,
