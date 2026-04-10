@@ -4,6 +4,7 @@ import types
 from typing import NamedTuple, Literal
 import numpy as np
 
+from orix.vector import Vector3d
 from orix.quaternion import Rotation, Quaternion
 from orix.crystal_map import Phase
 from diffsims.generators.simulation_generator import SimulationGenerator
@@ -385,13 +386,9 @@ class OrientedPhase(NamedTuple):
             raise TypeError("Unrecognized orientation type")
         assert isinstance(orientation, Quaternion)
         if in_plane_rot != 0.:
-            orientation = Rotation.from_euler(
-                (0., 0., in_plane_rot),
-                # c2l results in a negative rotation when comparing
-                # the same peak from a rotated phase
-                # direction="crystal2lab",
-                degrees=True,
-            ) * orientation
+            vec = orientation * Vector3d.zvector()
+            rot = Rotation.from_axes_angles(vec, in_plane_rot, degrees=True)
+            orientation = rot * orientation
         return orientation
 
     @property
