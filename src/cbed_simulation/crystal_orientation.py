@@ -377,7 +377,6 @@ class OrientedPhase(NamedTuple):
         elif isinstance(orientation, (list, tuple, np.ndarray)):
             orientation = Rotation.from_euler(
                 orientation,
-                direction="crystal2lab",
                 degrees=True,
             )
         elif isinstance(orientation, Quaternion):
