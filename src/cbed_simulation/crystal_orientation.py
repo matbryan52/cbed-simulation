@@ -385,10 +385,12 @@ class OrientedPhase(NamedTuple):
             raise TypeError("Unrecognized orientation type")
         assert isinstance(orientation, Quaternion)
         if in_plane_rot != 0.:
-            # Due to the convention used, in_plane_rot is clockwise when plotting with y down
-            # and in_plane_rot will be subtracted from the first Euler angle of orientation
+            # Due to the convention used, in_plane_rot subtracts from the first Euler angle.
+            # The value given is negated such that a positive in_plane_rot corresponds to
+            # a positive first Euler angle, and an anti-clockwise rotation of the pattern
+            # when plotted with y-positive-down, and matches what is seen in ASTAR
             vec = orientation * Vector3d.zvector()
-            rot = Rotation.from_axes_angles(vec, in_plane_rot, degrees=True)
+            rot = Rotation.from_axes_angles(vec, -1 * in_plane_rot, degrees=True)
             orientation = rot * orientation
         return orientation
 
