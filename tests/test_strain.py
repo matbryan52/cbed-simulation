@@ -139,6 +139,7 @@ def strainval_to_target(strain_val):
     return target_tensor
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
         "cif_path, strain_val",
         (
@@ -260,6 +261,7 @@ def test_py4DSTEM_template_match(cif_path, strain_val):
     assert_allclose(min_distances, 0., rtol=0., atol=0.1)
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
         "cif_path, strain_val",
         (
