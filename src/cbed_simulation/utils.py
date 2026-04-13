@@ -140,11 +140,28 @@ def overlay_peaks(
     return fig, ax
 
 
-def rotation_from_to(vfrom: Vector3d, vto: Vector3d) -> Rotation:
-    return Rotation.from_axes_angles(
-        vfrom.cross(vto),
-        vfrom.angle_with(vto),
-    ).squeeze()
+def _rotation_z_to_vecs(vecs: Vector3d) -> Rotation:
+    """
+    Return Rotation objects mapping z → v for each v in vecs,
+    with a consistent φ₁ = 0 reference in Bunge (ZXZ) convention.
+
+    Uses the same decomposition as orix's get_sample_reduced_fundamental:
+      φ₁ = 0                              — fixed in-plane reference
+      Φ  = arccos(vz)                     — polar angle from z
+      φ₂ = (π/2 − arctan2(vy, vx)) % 2π  — azimuthal angle
+
+    The constraint φ₁ = 0 keeps the in-plane reference constant across
+    all directions, so the γ recovered during correlation is directly
+    comparable between any two plan entries and equals the Bunge φ₁ of
+    the full orientation.
+    """
+    v = vecs.unit.data                          # (..., 3), normalised
+    vz = np.clip(v[..., 2], -1.0, 1.0)
+    Phi = np.arccos(vz)                         # polar angle
+    azimuth = np.arctan2(v[..., 1], v[..., 0])
+    phi1 = np.zeros_like(Phi)
+    phi2 = (np.pi / 2 - azimuth) % (2 * np.pi)
+    return Rotation.from_euler(np.stack([phi1, Phi, phi2], axis=-1))
 
 
 def orientation_for_hkl(phase: Phase, hkl: tuple[int, int, int]):
@@ -155,7 +172,7 @@ def orientation_for_hkl(phase: Phase, hkl: tuple[int, int, int]):
     vec = Vector3d((miller.x.item(), miller.y.item(), miller.z.item()))
     # NOTE this could be replaced with Miller(hkl=(0, 0, 1)) to be more correct
     # but this would need an equivalent change in strain_orientation_mapping
-    return rotation_from_to(Vector3d.zvector(), vec)
+    return _rotation_z_to_vecs(vec)
 
 
 def cif_to_phase(cif_path: os.PathLike):

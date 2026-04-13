@@ -373,7 +373,7 @@ class OrientedPhase(NamedTuple):
         if zone_axis is not None:
             orientation = orientation_for_hkl(
                 phase, zone_axis,
-            ).inv()
+            )
         elif isinstance(orientation, (list, tuple, np.ndarray)):
             orientation = Rotation.from_euler(
                 orientation,
@@ -386,6 +386,8 @@ class OrientedPhase(NamedTuple):
             raise TypeError("Unrecognized orientation type")
         assert isinstance(orientation, Quaternion)
         if in_plane_rot != 0.:
+            # Due to the convention used, in_plane_rot is clockwise when plotting with y down
+            # and in_plane_rot will be subtracted from the first Euler angle of orientation
             vec = orientation * Vector3d.zvector()
             rot = Rotation.from_axes_angles(vec, in_plane_rot, degrees=True)
             orientation = rot * orientation
@@ -434,7 +436,7 @@ class OrientedPhase(NamedTuple):
         )
         sim = gen.calculate_diffraction2d(
             phase=lattice_mod.apply_diffsims(self.phase),
-            rotation=self.orientation.inv(),
+            rotation=self.orientation,
             reciprocal_radius=max_extent,
             max_excitation_error=max_excitation_error,
             with_direct_beam=True,
@@ -474,7 +476,7 @@ class OrientedPhase(NamedTuple):
             max_excitation_error = 0.1
         pattern = get_bloch_pattern(
             lattice_mod.apply_ase(self.atoms),
-            self.orientation,
+            self.orientation.inv(),
             progress=False,
             voltage=experiment.voltage_kv * 1_000,
             max_extent=max_extent,
