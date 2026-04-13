@@ -13,6 +13,7 @@ from cbed_simulation.crystal_orientation import (
     EulerAngles, OrientedPhase, ExperimentInformation
 )
 from cbed_simulation.frame_builder import FrameParameters
+from orix.quaternion import Rotation as RotationOrix
 
 
 ROOT_PATH = pathlib.Path(__file__).parent
@@ -26,18 +27,20 @@ def test_001_no_rotation(cif_path):
         cif_path=cif_path,
         zone_axis=(0, 0, 1),
     )
-    assert_allclose(phase.orientation.to_matrix().squeeze(), np.eye(3))
+    _, b, c = phase.orientation.to_euler(degrees=True).squeeze()
+    rot = RotationOrix.from_euler((0, b, c), degrees=True)
+    assert_allclose(rot.to_matrix().squeeze(), np.eye(3))
 
 
 @pytest.mark.parametrize(
         "cif_path, za, euler",
         (
-            (ROOT_PATH / "Si.cif", (1, 1, 0), (315, 90, 45)),
-            (ROOT_PATH / "Si.cif", (1, 1, 1), (315, 54.74, 45)),
-            (ROOT_PATH / "Si.cif", (2, 0, 1), (270, 63.43, 90)),
+            (ROOT_PATH / "Si.cif", (1, 1, 0), (0, 90, 45)),
+            (ROOT_PATH / "Si.cif", (1, 1, 1), (0, 54.74, 45)),
+            (ROOT_PATH / "Si.cif", (2, 0, 1), (0, 63.43, 90)),
             (ROOT_PATH / "Si.cif", (0, 3, 0), (0, 90, 0)),
             (ROOT_PATH / "Si.cif", (0, 3, 2), (0, 56.3, 0)),
-            (ROOT_PATH / "GaN.cif", (1, 1, 0), (330, 90, 30)),
+            (ROOT_PATH / "GaN.cif", (1, 1, 0), (0, 90, 30)),
             # (ROOT_PATH / "GaN.cif", (2, 0, 1), (270, 50.83, 90)),
         )
 )
@@ -94,8 +97,8 @@ def test_in_plane_rotation(cif_path, in_plane, za, bloch):
     pos = peaks.spot_position(hkl, centre_zero=True)
     pos_rot = peaks_rot.spot_position(hkl, centre_zero=True)
     assert_allclose(
-        np.rad2deg(np.angle(pos_rot) - np.angle(pos)),
-        in_plane,
+        np.angle(np.exp(1j * (np.angle(pos_rot) - np.angle(pos)))),
+        np.deg2rad(in_plane),
     )
 
 
