@@ -177,7 +177,7 @@ def orientation_for_hkl(phase: Phase, hkl: tuple[int, int, int]):
 
 def cif_to_phase(cif_path: os.PathLike):
     cif_path = pathlib.Path(cif_path)
-    with cif_path.open('r') as fp:
+    with cif_path.open('r', encoding='utf-8') as fp:
         cif_str = fp.read()
     cif = P_cif()
     structure = cif.parse(cif_str)
