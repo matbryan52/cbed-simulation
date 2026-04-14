@@ -529,6 +529,8 @@ class OrientedPhase(NamedTuple):
         xp, ndimage = get_backend(backend)
 
         offsets = sim_peaks.peaks
+        if offsets.size == 0:
+            raise ValueError("No peaks to simulate")
         intensities = sim_peaks.weights
         pixel_peaks = sim_peaks.to_pixels(experiment)
         offsets = pixel_peaks.offsets
