@@ -82,7 +82,8 @@ def test_in_plane_rotation(cif_path, in_plane, za, bloch):
     )
     phase_rot = phase.with_rot(
         zone_axis=za,
-        in_plane_rot=in_plane,
+        # convention means negative rotation of pattern but positive Euler angle
+        in_plane_rot=-1 * in_plane,
     )
     experiment = ExperimentInformation(
         frame_shape=(256, 256),
