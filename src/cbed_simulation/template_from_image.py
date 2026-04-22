@@ -104,21 +104,20 @@ def shift_probe(template, cyx: tuple[float, float], shifted: Literal["fourier", 
     )
 
 
-def com_crop(frame: np.ndarray, size: int):
+def com_crop(frame: np.ndarray, hsize: int):
     cy, cx = np.round(
         center_of_mass(frame - frame.min())
     ).astype(int)
-    hsize = size // 2
     return np.s_[
         cy - hsize: cy + hsize,
         cx - hsize: cx + hsize,
     ]
 
 
-def subpixel_com_crop(template: np.ndarray, size: int):
-    crop = com_crop(template, size)
+def subpixel_com_crop(template: np.ndarray, hsize: int):
+    crop = com_crop(template, hsize)
     crop = template[crop]
-    h2, w2 = (crop.shape[0] - 1) / 2., (crop.shape[1] - 1) / 2.
+    h2, w2 = crop.shape[0] / 2., crop.shape[1] / 2.
     cy, cx = center_of_mass(crop - crop.min())
     return fourier_shift_img(
         crop, (h2 - cy, w2 - cx),
